@@ -1,0 +1,68 @@
+package audit
+
+import (
+	"testing"
+	"time"
+)
+
+func TestApproveBeforeTimeout(t *testing.T) {
+	am := NewApprovalManager()
+
+	done := make(chan bool, 1)
+	go func() {
+		done <- am.WaitForApproval("req-1", 5*time.Second)
+	}()
+
+	// Give WaitForApproval time to register.
+	time.Sleep(50 * time.Millisecond)
+
+	if !am.Approve("req-1") {
+		t.Fatal("Approve returned false")
+	}
+
+	result := <-done
+	if !result {
+		t.Error("expected WaitForApproval to return true")
+	}
+}
+
+func TestDenyBeforeTimeout(t *testing.T) {
+	am := NewApprovalManager()
+
+	done := make(chan bool, 1)
+	go func() {
+		done <- am.WaitForApproval("req-2", 5*time.Second)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	if !am.Deny("req-2") {
+		t.Fatal("Deny returned false")
+	}
+
+	result := <-done
+	if result {
+		t.Error("expected WaitForApproval to return false after deny")
+	}
+}
+
+func TestApprovalTimeout(t *testing.T) {
+	am := NewApprovalManager()
+
+	result := am.WaitForApproval("req-3", 50*time.Millisecond)
+	if result {
+		t.Error("expected WaitForApproval to return false on timeout")
+	}
+}
+
+func TestApproveAfterTimeout(t *testing.T) {
+	am := NewApprovalManager()
+
+	// Let the wait expire.
+	am.WaitForApproval("req-4", 50*time.Millisecond)
+
+	// Now try to approve — channel already consumed.
+	if am.Approve("req-4") {
+		t.Error("expected Approve to return false after timeout")
+	}
+}

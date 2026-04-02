@@ -1,0 +1,82 @@
+package proxy
+
+import "encoding/json"
+
+// Message represents a parsed JSON-RPC 2.0 message.
+type Message struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   json.RawMessage `json:"error,omitempty"`
+}
+
+// ToolCallParams holds parsed params for a tools/call request.
+type ToolCallParams struct {
+	Name      string         `json:"name"`
+	Arguments map[string]any `json:"arguments,omitempty"`
+}
+
+// ParseMessage attempts to parse a JSON-RPC message from a line.
+// Returns nil if the line is not valid JSON-RPC.
+func ParseMessage(line []byte) *Message {
+	var msg Message
+	if err := json.Unmarshal(line, &msg); err != nil {
+		return nil
+	}
+	if msg.JSONRPC != "2.0" {
+		return nil
+	}
+	return &msg
+}
+
+// IsRequest returns true if the message is a request (has method).
+func (m *Message) IsRequest() bool {
+	return m.Method != "" && m.ID != nil
+}
+
+// IsResponse returns true if the message is a response (has result or error).
+func (m *Message) IsResponse() bool {
+	return m.Method == "" && m.ID != nil
+}
+
+// IsNotification returns true if the message is a notification (method but no id).
+func (m *Message) IsNotification() bool {
+	return m.Method != "" && m.ID == nil
+}
+
+// IsToolCall returns true if this is a tools/call request.
+func (m *Message) IsToolCall() bool {
+	return m.Method == "tools/call" && m.IsRequest()
+}
+
+// ParseToolCallParams extracts tool name and arguments from a tools/call request.
+// Returns a zero-value ToolCallParams (empty name) if params are nil or missing,
+// so callers always get a non-nil result for tool calls.
+func (m *Message) ParseToolCallParams() (*ToolCallParams, error) {
+	if m.Params == nil {
+		return &ToolCallParams{}, nil
+	}
+	var p ToolCallParams
+	if err := json.Unmarshal(m.Params, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// IDString returns the message ID as a normalized string for matching purposes.
+// Strips surrounding quotes from JSON string IDs so "1" and 1 both work as map keys.
+func (m *Message) IDString() string {
+	if m.ID == nil {
+		return ""
+	}
+	raw := string(m.ID)
+	// Try to unmarshal as a string first (JSON string IDs).
+	var s string
+	if err := json.Unmarshal(m.ID, &s); err == nil {
+		return s
+	}
+	// Otherwise return the raw JSON (numeric IDs, etc.).
+	return raw
+}
