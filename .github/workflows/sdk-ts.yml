@@ -1,10 +1,14 @@
-name: CI
+name: "CI: sdk-ts"
 
 on:
   push:
     branches: [main]
+    paths:
+      - "sdk/ts/**"
   pull_request:
     branches: [main]
+    paths:
+      - "sdk/ts/**"
 
 permissions:
   contents: read
@@ -12,6 +16,9 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/ts
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +33,7 @@ jobs:
         with:
           node-version: "22"
           cache: "pnpm"
+          cache-dependency-path: sdk/ts/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
 

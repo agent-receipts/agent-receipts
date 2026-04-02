@@ -1,10 +1,14 @@
-name: CI
+name: "CI: sdk-py"
 
 on:
   push:
     branches: [main]
+    paths:
+      - "sdk/py/**"
   pull_request:
     branches: [main]
+    paths:
+      - "sdk/py/**"
 
 permissions:
   contents: read
@@ -12,6 +16,9 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/py
 
     strategy:
       matrix:

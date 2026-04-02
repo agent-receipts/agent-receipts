@@ -1,10 +1,14 @@
-name: CI
+name: "CI: spec"
 
 on:
   push:
     branches: [main]
+    paths:
+      - "spec/**"
   pull_request:
     branches: [main]
+    paths:
+      - "spec/**"
 
 permissions:
   contents: read
@@ -12,6 +16,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spec
 
     steps:
       - uses: actions/checkout@v4

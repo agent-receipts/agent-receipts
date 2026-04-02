@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/agent-receipts/sdk-py"
-Repository = "https://github.com/agent-receipts/sdk-py"
-Issues = "https://github.com/agent-receipts/sdk-py/issues"
+Homepage = "https://github.com/agent-receipts/agent-receipts"
+Repository = "https://github.com/agent-receipts/agent-receipts"
+Issues = "https://github.com/agent-receipts/agent-receipts/issues"
 Spec = "https://github.com/agent-receipts/spec"
 
 [project.optional-dependencies]

@@ -1,14 +1,23 @@
-name: CI
+name: "CI: mcp-proxy"
 
 on:
   push:
     branches: [main]
+    paths:
+      - "mcp-proxy/**"
+      - "sdk/go/**"
   pull_request:
     branches: [main]
+    paths:
+      - "mcp-proxy/**"
+      - "sdk/go/**"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-proxy
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +29,7 @@ jobs:
         run: go vet ./...
 
       - name: Build
-        run: go build ./...
+        run: go build ./cmd/mcp-proxy
 
       - name: Test
         run: go test ./... -v

@@ -3,7 +3,7 @@ package store
 import (
 	"testing"
 
-	"github.com/agent-receipts/sdk-go/receipt"
+	"github.com/agent-receipts/agent-receipts/sdk/go/receipt"
 )
 
 func setupStore(t *testing.T) *Store {

@@ -6,7 +6,8 @@
 	"author": "Otto Jongerius",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/agent-receipts/sdk-ts.git"
+		"url": "git+https://github.com/agent-receipts/agent-receipts.git",
+		"directory": "sdk/ts"
 	},
 	"type": "module",
 	"exports": {

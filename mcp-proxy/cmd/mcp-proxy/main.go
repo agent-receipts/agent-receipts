@@ -14,12 +14,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/agent-receipts/mcp-proxy/internal/audit"
-	"github.com/agent-receipts/mcp-proxy/internal/policy"
-	"github.com/agent-receipts/mcp-proxy/internal/proxy"
-	"github.com/agent-receipts/sdk-go/receipt"
-	receiptStore "github.com/agent-receipts/sdk-go/store"
-	"github.com/agent-receipts/sdk-go/taxonomy"
+	"github.com/agent-receipts/agent-receipts/mcp-proxy/internal/audit"
+	"github.com/agent-receipts/agent-receipts/mcp-proxy/internal/policy"
+	"github.com/agent-receipts/agent-receipts/mcp-proxy/internal/proxy"
+	"github.com/agent-receipts/agent-receipts/sdk/go/receipt"
+	receiptStore "github.com/agent-receipts/agent-receipts/sdk/go/store"
+	"github.com/agent-receipts/agent-receipts/sdk/go/taxonomy"
 	"github.com/google/uuid"
 )
 
