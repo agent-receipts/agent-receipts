@@ -1,6 +1,6 @@
 # AGENTS.md
 
-MCP proxy that sits between an MCP client and server on stdin/stdout, intercepting every tool call to classify, score risk, evaluate policy, sign cryptographic receipts, redact sensitive data, and store an audit trail. Built with Go on [sdk-go](https://github.com/agent-receipts/sdk-go).
+MCP proxy that sits between an MCP client and server on stdin/stdout, intercepting every tool call to classify, score risk, evaluate policy, sign cryptographic receipts, redact sensitive data, and store an audit trail. Built with Go on [sdk/go](../sdk/go/).
 
 ## Getting started
 
