@@ -1,0 +1,40 @@
+rules:
+  - name: block_destructive_ops
+    description: Block delete operations on sensitive tools
+    enabled: true
+    tool_pattern: "delete_*"
+    operation_types: [delete]
+    min_risk_score: 70
+    action: block
+
+  - name: pause_high_risk
+    description: Pause high-risk operations for approval
+    enabled: true
+    min_risk_score: 50
+    action: pause
+
+  - name: flag_sql_mutations
+    description: Flag SQL write/delete/execute operations
+    enabled: true
+    server_pattern: "postgres*"
+    operation_types: [write, delete, execute]
+    action: flag
+
+  - name: flag_auth_tools
+    description: Flag tools that interact with authentication
+    enabled: true
+    tool_pattern: "*auth*"
+    action: flag
+
+  - name: flag_config_changes
+    description: Flag configuration modification tools
+    enabled: true
+    tool_pattern: "*config*"
+    operation_types: [write, delete]
+    action: flag
+
+  - name: flag_external_messages
+    description: Flag tools that send external messages
+    enabled: true
+    tool_pattern: "send_*"
+    action: flag
