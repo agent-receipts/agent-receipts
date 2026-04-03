@@ -1,8 +1,12 @@
 ---
 name: Bug report
-about: Report a bug in a SDK, the MCP proxy, or the spec
+about: Report a bug in an SDK, the MCP proxy, or the spec
 labels: bug
 ---
+
+> [!IMPORTANT]
+> If you believe you have found a security vulnerability, please do **not** report it here.
+> See [SECURITY.md](../../SECURITY.md) for private vulnerability reporting instructions.
 
 **Component**
 Which part of the monorepo is affected?

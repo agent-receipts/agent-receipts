@@ -28,7 +28,6 @@ store/      # SQLite receipt persistence, query, stats, chain verification
 
 ## Testing
 
-- Tests sit alongside source files as `*_test.go`
 - Run `go test ./...` to execute all tests
 - Run `go test -v ./receipt/` (or any subpackage) to test a single package
-- Receipt output must be byte-identical across SDKs — cross-language tests in `../cross-sdk-tests/` verify this
+- Receipt output must be byte-identical across SDKs — cross-language tests in `../../cross-sdk-tests/` verify this
