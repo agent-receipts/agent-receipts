@@ -1,8 +1,8 @@
-# ADR-NNNN: Title
+# ADR-0000: Title
 
 ## Status
 
-Proposed | Accepted | Deprecated | Superseded by ADR-XXXX
+Proposed | Accepted | Deprecated | Superseded by ADR-0001
 
 ## Context
 

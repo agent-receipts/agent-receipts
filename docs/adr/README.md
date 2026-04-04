@@ -6,7 +6,7 @@ ADRs capture the context, decision, and consequences of architecturally signific
 
 ## Template
 
-Use `0000-template.md` as the starting point for new ADRs. Number sequentially (`0001-`, `0002-`, etc.).
+Use `0000-template.md` as the starting point for new ADRs. Name each new ADR file with a sequential 4-digit prefix (for example, `0001-my-decision.md`, `0002-another-decision.md`, etc.). In the ADR content, use the same number in the header as `ADR-0001`, `ADR-0002`, and so on. The ADR number in the header should always match the filename prefix.
 
 ## Index
 
