@@ -66,6 +66,12 @@ AI agents (Claude Code, Copilot, etc.) are first-class contributors to this proj
 
 **Agent boundaries** — agents must follow the [Agent safety rules](AGENTS.md#agent-safety-rules). Key constraints: no spec changes without human approval, no CI workflow changes, no real cryptographic keys.
 
+## Architecture Decision Records
+
+For larger changes — new cryptographic choices, storage backends, protocol extensions, or anything that alters cross-SDK compatibility — open an ADR before writing code. ADRs live in `docs/adr/` and use the template in `docs/adr/0000-template.md`. They capture the *why* behind a decision so future contributors (human and AI) don't accidentally undo it.
+
+See the [ADR index](docs/adr/README.md) for existing records and references.
+
 ## Pull request guidelines
 
 - CI is path-filtered: only the workflows relevant to the directories you changed will run.
