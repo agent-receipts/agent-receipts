@@ -220,23 +220,34 @@ func (s *Store) LinkToolCallToIntent(intentID, toolCallID int64, seqOrder int) e
 }
 
 // EncryptionSalt returns the per-installation encryption salt, generating and
-// persisting a random 16-byte salt on first use.
+// persisting a random 16-byte salt on first use. Concurrent callers are safe:
+// INSERT OR IGNORE + re-SELECT ensures all callers converge on the same salt.
 func (s *Store) EncryptionSalt() ([]byte, error) {
 	var encoded string
 	err := s.db.QueryRow("SELECT value FROM metadata WHERE key = 'encryption_salt'").Scan(&encoded)
-	if err == nil {
-		return hex.DecodeString(encoded)
-	}
-	if err != sql.ErrNoRows {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("query encryption salt: %w", err)
 	}
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return nil, fmt.Errorf("generate encryption salt: %w", err)
+	if err == sql.ErrNoRows {
+		salt := make([]byte, 16)
+		if _, err := rand.Read(salt); err != nil {
+			return nil, fmt.Errorf("generate encryption salt: %w", err)
+		}
+		encoded = hex.EncodeToString(salt)
+		if _, err := s.db.Exec("INSERT OR IGNORE INTO metadata (key, value) VALUES ('encryption_salt', ?)", encoded); err != nil {
+			return nil, fmt.Errorf("persist encryption salt: %w", err)
+		}
+		// Re-read to handle the race: another caller may have inserted first.
+		if err := s.db.QueryRow("SELECT value FROM metadata WHERE key = 'encryption_salt'").Scan(&encoded); err != nil {
+			return nil, fmt.Errorf("query persisted encryption salt: %w", err)
+		}
 	}
-	encoded = hex.EncodeToString(salt)
-	if _, err := s.db.Exec("INSERT INTO metadata (key, value) VALUES ('encryption_salt', ?)", encoded); err != nil {
-		return nil, fmt.Errorf("persist encryption salt: %w", err)
+	salt, err := hex.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("decode encryption salt: %w", err)
+	}
+	if len(salt) != 16 {
+		return nil, fmt.Errorf("invalid encryption salt length: got %d, want 16", len(salt))
 	}
 	return salt, nil
 }

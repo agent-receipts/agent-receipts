@@ -126,3 +126,18 @@ func TestNilEncryptorPassthrough(t *testing.T) {
 		t.Errorf("expected passthrough, got %q", got)
 	}
 }
+
+func TestNewEncryptorRejectsInvalidSalt(t *testing.T) {
+	_, err := NewEncryptor("passphrase", nil)
+	if err == nil {
+		t.Error("expected error for nil salt")
+	}
+	_, err = NewEncryptor("passphrase", []byte("short"))
+	if err == nil {
+		t.Error("expected error for short salt")
+	}
+	_, err = NewEncryptor("passphrase", []byte("this-is-too-long-for-a-salt"))
+	if err == nil {
+		t.Error("expected error for long salt")
+	}
+}

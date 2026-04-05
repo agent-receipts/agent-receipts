@@ -29,6 +29,9 @@ func NewEncryptor(passphrase string, salt []byte) (*Encryptor, error) {
 	if passphrase == "" {
 		return nil, nil
 	}
+	if len(salt) != 16 {
+		return nil, fmt.Errorf("invalid salt length: got %d, want 16", len(salt))
+	}
 	key := argon2.IDKey([]byte(passphrase), salt, 1, 64*1024, 4, 32)
 
 	block, err := aes.NewCipher(key)
