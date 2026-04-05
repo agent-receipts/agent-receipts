@@ -147,9 +147,16 @@ func serve() {
 	engine := policy.NewEngine(rules)
 
 	// Encryption.
-	encryptor, err := audit.NewEncryptor(os.Getenv("BEACON_ENCRYPTION_KEY"))
-	if err != nil {
-		log.Fatalf("mcp-proxy: init encryption: %v", err)
+	var encryptor *audit.Encryptor
+	if key := os.Getenv("BEACON_ENCRYPTION_KEY"); key != "" {
+		salt, err := auditDB.EncryptionSalt()
+		if err != nil {
+			log.Fatalf("mcp-proxy: init encryption salt: %v", err)
+		}
+		encryptor, err = audit.NewEncryptor(key, salt)
+		if err != nil {
+			log.Fatalf("mcp-proxy: init encryption: %v", err)
+		}
 	}
 
 	// Intent tracker.

@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -21,22 +20,18 @@ type Encryptor struct {
 	gcm cipher.AEAD
 }
 
-// NewEncryptor creates an encryptor from a passphrase.
-// Returns nil if the passphrase is empty (encryption disabled).
-// Uses Argon2id for key derivation with a salt that is deterministically
-// derived from the passphrase (via SHA-256), so the same passphrase always
-// produces the same key. Since we need the same key for the lifetime of the
-// encryptor, we derive it once at creation time and reuse it for all operations.
-func NewEncryptor(passphrase string) (*Encryptor, error) {
+// NewEncryptor creates an encryptor from a passphrase and a per-installation
+// salt. Returns nil if the passphrase is empty (encryption disabled).
+// Uses Argon2id for key derivation so the same passphrase + salt always
+// produces the same key. The salt should be randomly generated once per
+// installation and persisted (see Store.EncryptionSalt).
+func NewEncryptor(passphrase string, salt []byte) (*Encryptor, error) {
 	if passphrase == "" {
 		return nil, nil
 	}
-	// Derive a 16-byte salt from the passphrase by hashing with SHA-256
-	// and taking the first 16 bytes, so the same passphrase always
-	// produces the same key. The Argon2id time/memory parameters provide
-	// the brute-force resistance.
-	saltSrc := sha256.Sum256([]byte("mcp-proxy-salt:" + passphrase))
-	salt := saltSrc[:16]
+	if len(salt) != 16 {
+		return nil, fmt.Errorf("invalid salt length: got %d, want 16", len(salt))
+	}
 	key := argon2.IDKey([]byte(passphrase), salt, 1, 64*1024, 4, 32)
 
 	block, err := aes.NewCipher(key)
