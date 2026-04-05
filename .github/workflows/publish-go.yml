@@ -1,0 +1,57 @@
+name: Publish SDK (Go)
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: startsWith(github.ref_name, 'sdk/go/v') || startsWith(github.ref_name, 'mcp-proxy/v')
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - module: sdk/go
+            tag_prefix: sdk/go/v
+            proxy_path: github.com/agent-receipts/ar/sdk/go
+          - module: mcp-proxy
+            tag_prefix: mcp-proxy/v
+            proxy_path: github.com/agent-receipts/ar/mcp-proxy
+
+    steps:
+      - name: Check tag match
+        id: guard
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "${{ matrix.tag_prefix }}"* ]]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.match == 'true'
+
+      - uses: actions/setup-go@v5
+        if: steps.guard.outputs.match == 'true'
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+
+      - name: Build
+        if: steps.guard.outputs.match == 'true'
+        working-directory: ${{ matrix.module }}
+        run: go build ./...
+
+      - name: Test
+        if: steps.guard.outputs.match == 'true'
+        working-directory: ${{ matrix.module }}
+        run: go test ./...
+
+      - name: Request pkg.go.dev indexing
+        if: steps.guard.outputs.match == 'true'
+        run: |
+          VERSION="${GITHUB_REF_NAME#${{ matrix.tag_prefix }}}"
+          curl -fsS "https://proxy.golang.org/${{ matrix.proxy_path }}/@v/v${VERSION}.info" || true
