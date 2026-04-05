@@ -11,7 +11,7 @@ describe("receipt schema constants", () => {
 	it("has the correct context URIs", () => {
 		expect(CONTEXT).toEqual([
 			"https://www.w3.org/ns/credentials/v2",
-			"https://attest.sh/v1",
+			"https://agentreceipts.ai/context/v1",
 		]);
 	});
 
