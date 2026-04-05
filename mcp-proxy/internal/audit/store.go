@@ -2,7 +2,9 @@
 package audit
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -71,6 +73,11 @@ CREATE INDEX IF NOT EXISTS idx_tool_calls_session ON tool_calls(session_id, requ
 CREATE INDEX IF NOT EXISTS idx_tool_calls_risk ON tool_calls(risk_score DESC);
 CREATE INDEX IF NOT EXISTS idx_tool_calls_policy ON tool_calls(policy_action) WHERE policy_action != 'pass';
 CREATE INDEX IF NOT EXISTS idx_intent_tool_calls_intent ON intent_tool_calls(intent_id);
+
+CREATE TABLE IF NOT EXISTS metadata (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
 `
 
 // Store is the SQLite audit store.
@@ -210,6 +217,28 @@ func (s *Store) LinkToolCallToIntent(intentID, toolCallID int64, seqOrder int) e
 		intentID, toolCallID, seqOrder,
 	)
 	return err
+}
+
+// EncryptionSalt returns the per-installation encryption salt, generating and
+// persisting a random 16-byte salt on first use.
+func (s *Store) EncryptionSalt() ([]byte, error) {
+	var encoded string
+	err := s.db.QueryRow("SELECT value FROM metadata WHERE key = 'encryption_salt'").Scan(&encoded)
+	if err == nil {
+		return hex.DecodeString(encoded)
+	}
+	if err != sql.ErrNoRows {
+		return nil, fmt.Errorf("query encryption salt: %w", err)
+	}
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, fmt.Errorf("generate encryption salt: %w", err)
+	}
+	encoded = hex.EncodeToString(salt)
+	if _, err := s.db.Exec("INSERT INTO metadata (key, value) VALUES ('encryption_salt', ?)", encoded); err != nil {
+		return nil, fmt.Errorf("persist encryption salt: %w", err)
+	}
+	return salt, nil
 }
 
 // Close closes the database.

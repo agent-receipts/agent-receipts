@@ -1,9 +1,13 @@
 package audit
 
-import "testing"
+import (
+	"testing"
+)
+
+var testSalt = []byte("0123456789abcdef")
 
 func TestEncryptDecryptRoundtrip(t *testing.T) {
-	enc, err := NewEncryptor("test-passphrase")
+	enc, err := NewEncryptor("test-passphrase", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,11 +34,11 @@ func TestEncryptDecryptRoundtrip(t *testing.T) {
 }
 
 func TestDecryptWrongPassphrase(t *testing.T) {
-	enc1, err := NewEncryptor("passphrase-one")
+	enc1, err := NewEncryptor("passphrase-one", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	enc2, err := NewEncryptor("passphrase-two")
+	enc2, err := NewEncryptor("passphrase-two", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +55,7 @@ func TestDecryptWrongPassphrase(t *testing.T) {
 }
 
 func TestDecryptCorruptedCiphertext(t *testing.T) {
-	enc, err := NewEncryptor("test-passphrase")
+	enc, err := NewEncryptor("test-passphrase", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +80,7 @@ func TestDecryptCorruptedCiphertext(t *testing.T) {
 }
 
 func TestDecryptTamperedPrefix(t *testing.T) {
-	enc, err := NewEncryptor("test-passphrase")
+	enc, err := NewEncryptor("test-passphrase", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +102,7 @@ func TestDecryptTamperedPrefix(t *testing.T) {
 }
 
 func TestNilEncryptorPassthrough(t *testing.T) {
-	enc, err := NewEncryptor("")
+	enc, err := NewEncryptor("", testSalt)
 	if err != nil {
 		t.Fatal(err)
 	}

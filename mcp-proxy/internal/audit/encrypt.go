@@ -20,22 +20,16 @@ type Encryptor struct {
 	gcm cipher.AEAD
 }
 
-// Fixed salt for deterministic key derivation. A constant salt means the same
-// passphrase always produces the same AES-256-GCM key, which intentionally
-// gives up per-installation uniqueness. Argon2id parameters provide the
-// brute-force resistance.
-const argon2Salt = "mcp-proxy-audit"
-
-// NewEncryptor creates an encryptor from a passphrase.
-// Returns nil if the passphrase is empty (encryption disabled).
-// Uses Argon2id for key derivation so the same passphrase always produces the
-// same key. Since we need the same key for the lifetime of the encryptor, we
-// derive it once at creation time and reuse it for all operations.
-func NewEncryptor(passphrase string) (*Encryptor, error) {
+// NewEncryptor creates an encryptor from a passphrase and a per-installation
+// salt. Returns nil if the passphrase is empty (encryption disabled).
+// Uses Argon2id for key derivation so the same passphrase + salt always
+// produces the same key. The salt should be randomly generated once per
+// installation and persisted (see Store.EncryptionSalt).
+func NewEncryptor(passphrase string, salt []byte) (*Encryptor, error) {
 	if passphrase == "" {
 		return nil, nil
 	}
-	key := argon2.IDKey([]byte(passphrase), []byte(argon2Salt), 1, 64*1024, 4, 32)
+	key := argon2.IDKey([]byte(passphrase), salt, 1, 64*1024, 4, 32)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
