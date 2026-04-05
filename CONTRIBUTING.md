@@ -62,11 +62,14 @@ test: add or update tests
 ci: change CI/CD configuration
 ```
 
-The `commit-msg` hook enforces this via [convco](https://convco.github.io/). Install it with:
+The `commit-msg` hook enforces this via [convco](https://convco.github.io/check/). Install it with:
 
 ```bash
-brew install convco
+brew install convco          # macOS
+cargo install convco         # Linux / Windows / any platform with Rust
 ```
+
+See the [convco installation docs](https://convco.github.io/check/installation/) for all options.
 
 ## Working with AI agents
 
