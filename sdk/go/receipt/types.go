@@ -4,7 +4,7 @@ package receipt
 
 // Protocol constants (unexported to prevent mutation).
 var (
-	protocolContext        = []string{"https://www.w3.org/ns/credentials/v2", "https://attest.sh/v1"}
+	protocolContext        = []string{"https://www.w3.org/ns/credentials/v2", "https://agentreceipts.ai/context/v1"}
 	protocolCredentialType = []string{"VerifiableCredential", "AgentReceipt"}
 )
 

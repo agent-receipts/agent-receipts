@@ -1,17 +1,17 @@
-name: "CI: sdk-go"
+name: "CI: cross-sdk-tests"
 
 on:
   push:
     branches: [main]
     paths:
-      - "sdk/go/**"
       - "cross-sdk-tests/**"
+      - "sdk/go/**"
       - "spec/**"
   pull_request:
     branches: [main]
     paths:
-      - "sdk/go/**"
       - "cross-sdk-tests/**"
+      - "sdk/go/**"
       - "spec/**"
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk/go
+        working-directory: cross-sdk-tests
     steps:
       - uses: actions/checkout@v4
 
@@ -30,14 +30,5 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: Vet
-        run: go vet ./...
-
-      - name: Build
-        run: go build ./...
-
-      - name: Test
-        run: go test ./... -v
-
       - name: Integration tests
-        run: go test -tags=integration ./... -v
+        run: go test -tags=integration -v

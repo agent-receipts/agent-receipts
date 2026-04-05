@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 CONTEXT: list[str] = [
     "https://www.w3.org/ns/credentials/v2",
-    "https://attest.sh/v1",
+    "https://agentreceipts.ai/context/v1",
 ]
 
 CREDENTIAL_TYPE: list[str] = [

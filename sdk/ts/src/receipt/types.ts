@@ -8,7 +8,7 @@
 
 export const CONTEXT = [
 	"https://www.w3.org/ns/credentials/v2",
-	"https://attest.sh/v1",
+	"https://agentreceipts.ai/context/v1",
 ] as const;
 
 export const CREDENTIAL_TYPE = [
