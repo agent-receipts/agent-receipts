@@ -23,6 +23,11 @@ EOF
 
 fail() { echo "error: $1" >&2; exit 1; }
 
+# Preflight: ensure common tools are available
+command -v git >/dev/null 2>&1 || fail "git is not installed"
+command -v gh >/dev/null 2>&1 || fail "gh CLI is not installed — see https://cli.github.com"
+gh auth status >/dev/null 2>&1 || fail "gh is not authenticated — run gh auth login"
+
 [[ $# -eq 2 ]] || usage
 
 MODULE="$1"
@@ -76,10 +81,12 @@ echo ""
 # Module-specific checks
 case "$MODULE" in
   sdk-go)
+    command -v go >/dev/null 2>&1 || fail "go is not installed"
     echo "--- Running Go checks in $DIR"
     (cd "$DIR" && go vet ./... && go test ./...)
     ;;
   mcp-proxy)
+    command -v go >/dev/null 2>&1 || fail "go is not installed"
     echo "--- Checking for replace directive in $DIR/go.mod"
     if grep -Eq '^[[:space:]]*replace[[:space:]]' "$DIR/go.mod"; then
       fail "$DIR/go.mod contains a replace directive — remove it and point to a published sdk/go version before releasing"
@@ -88,6 +95,8 @@ case "$MODULE" in
     (cd "$DIR" && go vet ./... && go test ./...)
     ;;
   sdk-ts)
+    command -v node >/dev/null 2>&1 || fail "node is not installed"
+    command -v pnpm >/dev/null 2>&1 || fail "pnpm is not installed"
     echo "--- Checking package.json version matches"
     PKG_VERSION=$(node -p "require('./$DIR/package.json').version")
     if [[ "$PKG_VERSION" != "$VERSION" ]]; then
@@ -97,6 +106,7 @@ case "$MODULE" in
     (cd "$DIR" && pnpm install --frozen-lockfile && pnpm run typecheck && pnpm test && pnpm run build)
     ;;
   sdk-py)
+    command -v uv >/dev/null 2>&1 || fail "uv is not installed — see https://docs.astral.sh/uv"
     echo "--- Checking pyproject.toml version matches"
     PY_VERSION=$(cd "$DIR" && uv run python -c "
 import tomllib, pathlib
