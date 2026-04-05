@@ -16,7 +16,7 @@ class TestConstants:
         assert CONTEXT[0] == "https://www.w3.org/ns/credentials/v2"
 
     def test_context_includes_attest(self) -> None:
-        assert CONTEXT[1] == "https://attest.sh/v1"
+        assert CONTEXT[1] == "https://agentreceipts.ai/context/v1"
 
     def test_credential_type_has_two_entries(self) -> None:
         assert len(CREDENTIAL_TYPE) == 2
