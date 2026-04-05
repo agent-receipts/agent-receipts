@@ -23,6 +23,9 @@ EOF
 
 fail() { echo "error: $1" >&2; exit 1; }
 
+# cd to repo root so the script works from any directory
+cd "$(git rev-parse --show-toplevel)"
+
 # Preflight: ensure common tools are available
 command -v git >/dev/null 2>&1 || fail "git is not installed"
 command -v gh >/dev/null 2>&1 || fail "gh CLI is not installed — see https://cli.github.com"
@@ -47,6 +50,13 @@ REMOTE=$(git rev-parse origin/main)
 
 # Ensure working tree is clean
 [[ -z "$(git status --porcelain)" ]] || fail "working tree is not clean — commit or stash changes first"
+
+# Go modules don't support build metadata in tags
+case "$MODULE" in
+  sdk-go|mcp-proxy)
+    [[ "$VERSION" != *+* ]] || fail "Go module versions cannot contain build metadata (+...)"
+    ;;
+esac
 
 case "$MODULE" in
   sdk-go)
