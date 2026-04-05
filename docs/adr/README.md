@@ -15,6 +15,7 @@ Use `0000-template.md` as the starting point for new ADRs. Name each new ADR fil
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-0001](0001-ed25519-for-receipt-signing.md) | Ed25519 for Receipt Signing | Accepted |
+| [ADR-0003](0003-w3c-vc-envelope-format.md) | W3C Verifiable Credentials as the Receipt Envelope | Accepted |
 
 ## References
 
