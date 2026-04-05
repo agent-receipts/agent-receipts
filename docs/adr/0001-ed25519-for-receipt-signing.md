@@ -10,9 +10,9 @@ The Agent Receipts protocol requires a digital signature algorithm for signing a
 
 We evaluated the following alternatives:
 
-- **ECDSA (secp256k1 / P-256):** Widely deployed, but non-deterministic signatures introduce nonce reuse risk, which has caused real-world key compromise in other systems. Deterministic ECDSA (RFC 6979) mitigates this but adds implementation complexity.
+- **ECDSA (secp256k1 / P-256):** Widely deployed. Vanilla ECDSA is non-deterministic, and nonce reuse has caused real-world key compromise in other systems. Deterministic ECDSA (RFC 6979) is now the default in most modern libraries (Go `crypto/ecdsa` since 1.20, OpenSSL 3.x), but Ed25519's determinism is inherent to the algorithm rather than an opt-in mitigation.
 - **RSA (2048/4096):** Ubiquitous in enterprise environments, but keys (256–512 bytes) and signatures (256–512 bytes) are an order of magnitude larger than Ed25519. This is prohibitive for receipt chains.
-- **Ed448:** Offers a higher security margin (224-bit classical / ~112-bit quantum vs 128-bit classical / ~64-bit quantum for Ed25519) but has significantly less library support, larger keys (57 bytes) and signatures (114 bytes), and slower operations — without a compelling threat model to justify the trade-offs today.
+- **Ed448:** Offers a higher classical security margin (224-bit vs 128-bit for Ed25519) but has significantly less library support, larger keys (57 bytes) and signatures (114 bytes), and slower operations. Both Ed25519 and Ed448 are equally vulnerable to quantum attack via Shor's algorithm, so Ed448 provides no quantum advantage. The trade-offs are not justified by a compelling threat model today.
 
 Related: #20 (parent issue), #39.
 
@@ -24,7 +24,7 @@ Key reasons:
 
 - **Deterministic signatures** — no nonce reuse risk, eliminating an entire class of implementation vulnerabilities present in ECDSA.
 - **Compact keys (32 bytes) and signatures (64 bytes)** — critical for receipt chains where every byte compounds.
-- **Fast verification** — important when auditing large receipt chains.
+- **Fast verification and batch verification** — important when auditing large receipt chains. Ed25519 supports batch verification, allowing N signatures to be verified faster than N individual verifications.
 - **Excellent cross-language support** — available in Go stdlib (`crypto/ed25519`), libsodium, PyNaCl, and the Web Crypto API.
 - **W3C VC ecosystem alignment** — Ed25519 is a first-class algorithm in the Verifiable Credentials ecosystem, which aligns with our envelope format and `Ed25519Signature2020` proof type.
 - **No patent encumbrances.**
@@ -35,6 +35,8 @@ Key reasons:
 ### Signature malleability
 
 Ed25519 has known malleability concerns: some implementations accept non-canonical signatures where the S component is not fully reduced. All Agent Receipts SDK implementations MUST perform strict verification as specified in RFC 8032 §5.1.7, rejecting non-canonical signatures. This is especially important because we ship three SDK implementations (Go, Python, TypeScript) using different underlying libraries — a signature accepted by one SDK but rejected by another would break cross-language receipt verification.
+
+Note that Go's `crypto/ed25519` performs cofactored verification by default (stricter than §5.1.7), while some libraries do not. SDK implementations should document which verification behavior they use and include [Wycheproof test vectors](https://github.com/google/wycheproof) to cover Ed25519 edge cases beyond malleability.
 
 ### Canonicalization dependency
 
@@ -58,8 +60,8 @@ The Ed25519 algorithm is designed to facilitate constant-time implementations, a
 
 ## Known Risks
 
-- **Not quantum-resistant.** Ed25519 provides ~128-bit classical security but only ~64-bit security against quantum attacks (Grover's algorithm on the underlying curve). This is acknowledged and tracked in #32 (algorithm agility). The planned algorithm agility mechanism will allow migration to a post-quantum algorithm when standards mature.
-- **No algorithm agility in v0.1.** The current wire format hardcodes `Ed25519Signature2020` as the proof type with no version field or algorithm dispatch mechanism. Old verifiers will need a strategy for handling receipts signed with future algorithms. The algorithm agility design (#32) must address how v0.1 receipts are treated when new algorithms are introduced — at minimum, v0.1 receipts should be considered implicitly tagged as Ed25519.
+- **Not quantum-resistant.** Ed25519 provides ~128-bit classical security but is fully broken by Shor's algorithm on a cryptographically relevant quantum computer — as are all elliptic curve schemes including Ed448 and ECDSA. This is acknowledged and tracked in #32 (algorithm agility). NIST recommends migrating to ML-DSA by 2030, with quantum-ready cryptography mandatory for government use after 2035. The planned algorithm agility mechanism will allow migration to a post-quantum algorithm as standards mature.
+- **No algorithm agility in v0.1.** The current wire format hardcodes `Ed25519Signature2020` as the proof type and does not include a separate algorithm identifier, negotiation field, or algorithm dispatch mechanism. Old verifiers will need a strategy for handling receipts signed with future algorithms. Algorithm agility (#32) is a prerequisite for v1.0 — receipts are long-lived signed records exposed to "harvest now, break later" attacks, so the protocol must support post-quantum algorithms before leaving beta. The algorithm agility design must address how v0.1 receipts are treated when new algorithms are introduced — at minimum, v0.1 receipts should be considered implicitly tagged as Ed25519.
 - **Less ubiquitous in enterprise environments than RSA.** Adoption has grown substantially and Ed25519 is supported in all modern TLS and SSH implementations.
 - **Single curve means no negotiation flexibility.** Mitigated by the planned algorithm agility mechanism, which will allow adding algorithms without breaking existing receipts.
 
@@ -70,4 +72,4 @@ The Ed25519 algorithm is designed to facilitate constant-time implementations, a
 - Receipt chains benefit from compact signatures, reducing storage and bandwidth overhead.
 - Enterprise integrations that only support RSA will need a compatibility layer or must adopt Ed25519.
 - Cross-language canonicalization and encoding conformance testing is a hard requirement, not optional.
-- A future ADR will be needed to introduce algorithm agility (see #32) when post-quantum migration becomes necessary, covering both the signature algorithm and chain hash function.
+- Algorithm agility (#32) is a prerequisite for v1.0 and should be the next cryptographic ADR, covering both the signature algorithm and chain hash function. Receipts signed today may need to remain trustworthy for years, making this a blocking concern for protocol stability.
