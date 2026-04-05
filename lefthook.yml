@@ -68,3 +68,8 @@ pre-push:
     - name: py-test
       root: "sdk/py/"
       run: uv run pytest
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: command -v convco >/dev/null 2>&1 || { echo "convco not found — install via 'brew install convco' or see https://convco.github.io/check/"; exit 1; } && convco check --from-stdin < "{1}"
