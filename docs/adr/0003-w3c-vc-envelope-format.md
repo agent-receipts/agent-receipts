@@ -21,12 +21,15 @@ Related: #44, #20 (parent issue).
 
 Use the W3C Verifiable Credentials Data Model 2.0 as the envelope format for all agent receipts. Receipts are W3C VCs with `type: ["VerifiableCredential", "AgentReceipt"]` and a required `@context` array beginning with the W3C VC v2 context URI (`https://www.w3.org/ns/credentials/v2`) followed by the Agent Receipts context URI (`https://agentreceipts.ai/context/v1`).
 
+> **Implementation note:** All SDKs currently use `https://attest.sh/v1` as the Agent Receipts context URI. The spec and schema define `https://agentreceipts.ai/context/v1`. The SDKs must be updated to match — see #81.
+
 Key structural choices:
 
 - **`issuer`** identifies the agent instance via a DID (e.g., `did:agent:...`), with optional fields for agent type, name, operator, model, and session identifier.
 - **`credentialSubject`** carries the entire receipt payload: principal, action, intent, outcome, authorization, delegation, and chain linkage. This keeps domain-specific content cleanly separated from the VC envelope.
 - **`proof`** follows the W3C VC Data Integrity structure with `type`, `created`, `verificationMethod`, `proofPurpose`, and `proofValue`. The proof type is `Ed25519Signature2020` (see ADR-0001).
-- **`validFrom`** serves as the issuance timestamp per VC Data Model 2.0 naming.
+- **`id`** is a required unique identifier for the receipt (e.g., a URN). Present in the JSON schema's `required` array but not defined by the protocol beyond uniqueness.
+- **`validFrom`** serves as the issuance timestamp per VC Data Model 2.0 naming. **Implementation note:** All SDKs currently serialize this field as `issuanceDate` (VC 1.x naming). The Go SDK documents this explicitly. Either the schema or the SDKs must be updated for consistency — see #83.
 - **`version`** is a protocol extension field (`"0.1.0"`) not defined by the VC Data Model. VC tooling that validates strictly against the VC schema should ignore unrecognized top-level fields.
 
 The protocol uses the W3C VC JSON shape but does not require a VC library dependency. Receipts may be constructed with plain JSON serialization (spec 10.1). No JSON-LD processing is required — the `@context` field is included for VC ecosystem compatibility but is not dereferenced at runtime.
@@ -35,9 +38,9 @@ The protocol uses the W3C VC JSON shape but does not require a VC library depend
 
 The protocol intentionally deviates from certain W3C Data Integrity defaults to simplify implementation:
 
-1. **Canonicalization:** The signing input uses RFC 8785 (JSON Canonicalization Scheme) rather than JSON-LD canonicalization (URDNA2015). This avoids a JSON-LD processing dependency while still producing deterministic byte sequences for signing. The W3C Data Integrity spec references RFC 8785 as an option; we adopt it as the sole method.
+1. **Canonicalization:** The signing input uses RFC 8785 (JSON Canonicalization Scheme) rather than JSON-LD canonicalization (URDNA2015). This avoids a JSON-LD processing dependency while still producing deterministic byte sequences for signing. RFC 8785 is a recognized canonicalization scheme; W3C Data Integrity primarily specifies URDNA2015 but does not preclude alternatives. We adopt RFC 8785 as the sole method. See ADR-0002 for the canonicalization decision rationale.
 2. **Signing algorithm:** The signer computes the Ed25519 signature directly over the RFC 8785 canonical JSON of the receipt with the `proof` field removed. This is simpler than the full W3C Data Integrity signing algorithm, which constructs a separate verification hash from document and proof options (spec 10.2).
-3. **`proofValue` encoding:** The JSON schema specifies multibase `z`-prefixed base58btc encoding for `proofValue`, consistent with the W3C Data Integrity default. Implementations must use this encoding. (Note: ADR-0001 references base64url with `u` prefix in the encoding section; the schema is authoritative — see spec 10.2 for the documented deviation boundary.)
+3. **`proofValue` encoding:** ADR-0001 specifies multibase base64url encoding (`u` prefix) for `proofValue`, and all SDKs implement this. The JSON schema currently specifies `z`-prefixed base58btc (the W3C Data Integrity default), which contradicts ADR-0001 and the running implementations — the schema pattern must be updated (see #78). The `u`-prefix base64url encoding defined in ADR-0001 is authoritative.
 
 These deviations are documented in spec 10.2. Implementations that need full W3C Data Integrity compatibility should use the complete algorithm and note this in their conformance documentation.
 
@@ -45,7 +48,7 @@ These deviations are documented in spec 10.2. Implementations that need full W3C
 
 ### Subset compliance
 
-Agent Receipts use a subset of the W3C VC Data Model. Features not used include: `credentialStatus`, `credentialSchema` (as a VC-level field), `evidence`, `termsOfUse`, `refreshService`, and `holder`. The `type` array is fixed to `["VerifiableCredential", "AgentReceipt"]` — no additional VC types are supported. Implementers expecting full W3C VC compliance should be aware of these boundaries. The subset used is documented in the JSON schema at `spec/schema/agent-receipt.schema.json`, which uses `additionalProperties: false` to reject unrecognized fields.
+Agent Receipts use a subset of the W3C VC Data Model. Features not used include: `credentialStatus`, `credentialSchema` (as a VC-level field), `evidence`, `termsOfUse`, `refreshService`, and `holder`. The `type` array is fixed to `["VerifiableCredential", "AgentReceipt"]` — no additional VC types are supported. Implementers expecting full W3C VC compliance should be aware of these boundaries. The subset used is documented in the JSON schema at `spec/schema/agent-receipt.schema.json`, which uses `additionalProperties: false` at the root level and most nested objects to reject unrecognized fields. Note that `credentialSubject` itself does not set `additionalProperties: false`, so extension fields within the credential subject are permitted by the schema.
 
 ### Proof structure integrity
 
@@ -58,6 +61,10 @@ The `proof.verificationMethod` field contains a DID URL (e.g., `did:agent:exampl
 ### @context injection
 
 The `@context` array is currently not processed as JSON-LD — it is included for VC ecosystem compatibility only. If JSON-LD processing is ever added, `@context` manipulation becomes a significant attack vector: a malicious `@context` URI could redefine term semantics, causing fields to be interpreted differently than intended. The schema constrains the first two context entries to fixed values, but additional context URIs are permitted. Implementations must not dereference or process `@context` URIs without explicit security review.
+
+### Replay and holder binding
+
+The protocol does not include a `holder` field, nonce, or challenge-response mechanism. Any party in possession of a valid receipt can present it — there is no cryptographic binding between a receipt and its intended audience. For the primary use case (audit trail records), this is acceptable: receipts are historical records, not bearer tokens. However, if receipts are ever used for access control or authorization proof, the absence of holder binding and replay protection becomes a vulnerability. Future protocol versions should consider adding `domain` and `challenge` fields (per the W3C Verifiable Presentations model) if presentation contexts require audience restriction.
 
 ### Envelope field manipulation
 
@@ -72,7 +79,7 @@ The separation of envelope (`issuer`, `validFrom`, `version`) from payload (`cre
 
 ## Consequences
 
-- Receipt schema follows the W3C VC Data Model 2.0 structure. All receipts have `@context`, `type`, `issuer`, `validFrom`, `credentialSubject`, and `proof` at the top level.
+- Receipt schema follows the W3C VC Data Model 2.0 structure. All receipts have `@context`, `id`, `type`, `issuer`, `validFrom`, `credentialSubject`, and `proof` at the top level.
 - All SDKs (Go, Python, TypeScript) must implement the VC envelope structure and proof format per W3C VC Data Integrity, with the simplifications documented in spec 10.2.
 - Deviations from W3C defaults (RFC 8785 canonicalization, simplified signing input) must be explicitly documented in SDK conformance statements and any interoperability guides.
 - Interoperability with W3C VC tooling is possible but not guaranteed without full compliance. Receipts can be parsed by generic VC libraries, but verification may fail if the library expects the full Data Integrity signing algorithm.
