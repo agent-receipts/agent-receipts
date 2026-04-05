@@ -1,4 +1,4 @@
-name: Publish SDK (Go)
+name: Publish Go Modules
 
 on:
   release:
@@ -44,10 +44,16 @@ jobs:
         if: steps.guard.outputs.match == 'true'
         working-directory: ${{ matrix.module }}
         run: |
-          if grep -qE '^\s*replace\s.*=>\s*\.\./' go.mod; then
-            echo "::error::go.mod contains a local replace directive — remove it before releasing"
-            exit 1
-          fi
+          go mod edit -json | python3 -c '
+          import json, re, sys
+          mod = json.load(sys.stdin)
+          for entry in mod.get("Replace") or []:
+              path = entry.get("New", {}).get("Path", "")
+              if (path in (".", "..") or path.startswith("./") or path.startswith("../")
+                  or path.startswith("/") or re.match(r"^[A-Za-z]:[\\\\/]", path)):
+                  print(f"::error::go.mod contains a local replace directive ({path}) — remove it before releasing")
+                  sys.exit(1)
+          '
 
       - name: Vet
         if: steps.guard.outputs.match == 'true'
