@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS receipts (
 	chain_id TEXT NOT NULL,
 	sequence INTEGER NOT NULL,
 	action_type TEXT NOT NULL,
+	tool_name TEXT NOT NULL DEFAULT '',
 	risk_level TEXT NOT NULL,
 	status TEXT NOT NULL,
 	timestamp TEXT NOT NULL,
@@ -64,11 +65,11 @@ type Query struct {
 
 // Stats holds aggregate statistics for the store.
 type Stats struct {
-	Total    int           `json:"total"`
-	Chains   int           `json:"chains"`
-	ByRisk   []GroupCount  `json:"by_risk"`
-	ByStatus []GroupCount  `json:"by_status"`
-	ByAction []GroupCount  `json:"by_action"`
+	Total    int          `json:"total"`
+	Chains   int          `json:"chains"`
+	ByRisk   []GroupCount `json:"by_risk"`
+	ByStatus []GroupCount `json:"by_status"`
+	ByAction []GroupCount `json:"by_action"`
 }
 
 // GroupCount is a label + count pair used in Stats.
@@ -117,14 +118,15 @@ func (s *Store) Insert(r receipt.AgentReceipt, receiptHash string) error {
 
 	_, err = s.db.Exec(`
 		INSERT INTO receipts
-		(id, chain_id, sequence, action_type, risk_level, status,
+		(id, chain_id, sequence, action_type, tool_name, risk_level, status,
 		 timestamp, issuer_id, principal_id, receipt_json, receipt_hash,
 		 previous_receipt_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID,
 		subj.Chain.ChainID,
 		subj.Chain.Sequence,
 		subj.Action.Type,
+		subj.Action.ToolName,
 		string(subj.Action.RiskLevel),
 		string(subj.Outcome.Status),
 		subj.Action.Timestamp,

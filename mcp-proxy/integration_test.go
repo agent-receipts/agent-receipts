@@ -197,6 +197,75 @@ func TestAuditPipelineToolCall(t *testing.T) {
 	}
 }
 
+// TestToolNameInReceipt verifies that the tool name is stored in the receipt
+// and that prefix-based classification provides the correct action type
+// when no taxonomy mapping exists (fixes #109).
+func TestToolNameInReceipt(t *testing.T) {
+	rStore, err := receiptStore.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rStore.Close() })
+
+	kp, err := receipt.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	toolName := "list_issues"
+	args := map[string]any{"repo": "agent-receipts/ar"}
+
+	// Taxonomy has no mapping for list_issues → falls back to ClassifyOperation.
+	classification := taxonomy.ClassifyToolCall(toolName, nil)
+	actionType := classification.ActionType
+	if actionType == "unknown" {
+		actionType = audit.ClassifyOperation(toolName)
+	}
+
+	argsJSON, _ := json.Marshal(args)
+	argsHash := receipt.SHA256Hash(string(argsJSON))
+
+	unsigned := receipt.Create(receipt.CreateInput{
+		Issuer:    receipt.Issuer{ID: "did:agent:test"},
+		Principal: receipt.Principal{ID: "did:user:test"},
+		Action: receipt.Action{
+			Type:           actionType,
+			ToolName:       toolName,
+			RiskLevel:      classification.RiskLevel,
+			ParametersHash: argsHash,
+		},
+		Outcome: receipt.Outcome{Status: receipt.StatusSuccess},
+		Chain:   receipt.Chain{Sequence: 1, ChainID: "test-chain-toolname"},
+	})
+
+	signed, err := receipt.Sign(unsigned, kp.PrivateKey, "did:agent:test#key-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := receipt.HashReceipt(signed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rStore.Insert(signed, h); err != nil {
+		t.Fatal(err)
+	}
+
+	// Retrieve and verify the receipt.
+	got, err := rStore.GetByID(signed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil {
+		t.Fatal("expected receipt, got nil")
+	}
+	if got.CredentialSubject.Action.ToolName != "list_issues" {
+		t.Errorf("expected action.tool_name %q, got %q", "list_issues", got.CredentialSubject.Action.ToolName)
+	}
+	if got.CredentialSubject.Action.Type != "read" {
+		t.Errorf("expected action.type %q, got %q", "read", got.CredentialSubject.Action.Type)
+	}
+}
+
 // TestRedactAndEncryptRoundtrip tests the full redact -> encrypt -> decrypt pipeline.
 func TestRedactAndEncryptRoundtrip(t *testing.T) {
 	raw := `{"username":"alice","password":"s3cret","data":"ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn"}`

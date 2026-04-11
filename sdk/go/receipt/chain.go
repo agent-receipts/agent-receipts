@@ -14,7 +14,7 @@ type ChainVerification struct {
 	Valid    bool                  `json:"valid"`
 	Length   int                   `json:"length"`
 	Receipts []ReceiptVerification `json:"receipts"`
-	BrokenAt int                   `json:"broken_at"` // -1 if chain is valid.
+	BrokenAt int                   `json:"broken_at"`       // -1 if chain is valid.
 	Error    string                `json:"error,omitempty"` // Non-empty if verification failed due to a key/proof error.
 }
 

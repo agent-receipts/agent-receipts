@@ -2,6 +2,8 @@ module github.com/agent-receipts/ar/mcp-proxy
 
 go 1.26.1
 
+replace github.com/agent-receipts/ar/sdk/go => ../sdk/go
+
 require (
 	github.com/agent-receipts/ar/sdk/go v0.2.0
 	github.com/google/uuid v1.6.0

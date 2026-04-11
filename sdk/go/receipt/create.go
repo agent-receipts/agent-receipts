@@ -11,7 +11,7 @@ import (
 type CreateInput struct {
 	Issuer        Issuer
 	Principal     Principal
-	Action        Action         // ID and Timestamp are auto-generated if empty.
+	Action        Action // ID and Timestamp are auto-generated if empty.
 	Outcome       Outcome
 	Chain         Chain
 	Intent        *Intent
