@@ -20,9 +20,6 @@ Related: #44, #20 (parent issue).
 ## Decision
 
 Use the W3C Verifiable Credentials Data Model 2.0 as the envelope format for all agent receipts. Receipts are W3C VCs with `type: ["VerifiableCredential", "AgentReceipt"]` and a required `@context` array beginning with the W3C VC v2 context URI (`https://www.w3.org/ns/credentials/v2`) followed by the Agent Receipts context URI (`https://agentreceipts.ai/context/v1`).
-
-> **Implementation note:** All SDKs currently use `https://attest.sh/v1` as the Agent Receipts context URI. The spec and schema define `https://agentreceipts.ai/context/v1`. The SDKs must be updated to match — see #81.
-
 Key structural choices:
 
 - **`issuer`** identifies the agent instance via a DID (e.g., `did:agent:...`), with optional fields for agent type, name, operator, model, and session identifier.
