@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS receipts (
 	chain_id TEXT NOT NULL,
 	sequence INTEGER NOT NULL,
 	action_type TEXT NOT NULL,
+	tool_name TEXT NOT NULL DEFAULT '',
 	risk_level TEXT NOT NULL,
 	status TEXT NOT NULL,
 	timestamp TEXT NOT NULL,
@@ -64,11 +65,11 @@ type Query struct {
 
 // Stats holds aggregate statistics for the store.
 type Stats struct {
-	Total    int           `json:"total"`
-	Chains   int           `json:"chains"`
-	ByRisk   []GroupCount  `json:"by_risk"`
-	ByStatus []GroupCount  `json:"by_status"`
-	ByAction []GroupCount  `json:"by_action"`
+	Total    int          `json:"total"`
+	Chains   int          `json:"chains"`
+	ByRisk   []GroupCount `json:"by_risk"`
+	ByStatus []GroupCount `json:"by_status"`
+	ByAction []GroupCount `json:"by_action"`
 }
 
 // GroupCount is a label + count pair used in Stats.
@@ -99,7 +100,40 @@ func Open(dbPath string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("init schema: %w", err)
 	}
+	// Migrate pre-existing databases that lack the tool_name column.
+	if err := migrateToolName(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate tool_name: %w", err)
+	}
 	return &Store{db: db}, nil
+}
+
+// migrateToolName adds the tool_name column to existing databases that
+// were created before this field existed. It is a no-op when the column
+// is already present (i.e. the table was just created by the schema DDL).
+func migrateToolName(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(receipts)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var dflt *string
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == "tool_name" {
+			return nil // column already exists
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = db.Exec("ALTER TABLE receipts ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''")
+	return err
 }
 
 // Insert persists a signed receipt with its precomputed hash.
@@ -117,14 +151,15 @@ func (s *Store) Insert(r receipt.AgentReceipt, receiptHash string) error {
 
 	_, err = s.db.Exec(`
 		INSERT INTO receipts
-		(id, chain_id, sequence, action_type, risk_level, status,
+		(id, chain_id, sequence, action_type, tool_name, risk_level, status,
 		 timestamp, issuer_id, principal_id, receipt_json, receipt_hash,
 		 previous_receipt_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID,
 		subj.Chain.ChainID,
 		subj.Chain.Sequence,
 		subj.Action.Type,
+		subj.Action.ToolName,
 		string(subj.Action.RiskLevel),
 		string(subj.Outcome.Status),
 		subj.Action.Timestamp,

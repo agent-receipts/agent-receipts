@@ -11,8 +11,8 @@ import (
 
 // ActionTypeEntry describes a known action type.
 type ActionTypeEntry struct {
-	Type        string           `json:"type"`
-	Description string           `json:"description"`
+	Type        string            `json:"type"`
+	Description string            `json:"description"`
 	RiskLevel   receipt.RiskLevel `json:"risk_level"`
 }
 
@@ -29,7 +29,7 @@ type TaxonomyConfig struct {
 
 // ClassificationResult holds the result of classifying a tool call.
 type ClassificationResult struct {
-	ActionType string           `json:"action_type"`
+	ActionType string            `json:"action_type"`
 	RiskLevel  receipt.RiskLevel `json:"risk_level"`
 }
 

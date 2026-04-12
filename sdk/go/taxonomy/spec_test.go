@@ -11,8 +11,8 @@ import (
 )
 
 type specTaxonomy struct {
-	Version string                    `json:"version"`
-	Domains map[string]specDomain     `json:"domains"`
+	Version string                `json:"version"`
+	Domains map[string]specDomain `json:"domains"`
 }
 
 type specDomain struct {

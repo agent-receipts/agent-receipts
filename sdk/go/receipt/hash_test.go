@@ -138,12 +138,12 @@ func TestHashReceiptWithNilOptionalFields(t *testing.T) {
 	}
 	// Receipt with nil Intent, nil Authorization, nil ActionTarget.
 	unsigned := Create(CreateInput{
-		Issuer:    Issuer{ID: "did:agent:test"},
-		Principal: Principal{ID: "did:user:test"},
-		Action:    Action{Type: "filesystem.file.read", RiskLevel: RiskLow, Target: nil},
-		Outcome:   Outcome{Status: StatusSuccess},
-		Chain:     Chain{Sequence: 1, ChainID: "chain-1"},
-		Intent:    nil,
+		Issuer:        Issuer{ID: "did:agent:test"},
+		Principal:     Principal{ID: "did:user:test"},
+		Action:        Action{Type: "filesystem.file.read", RiskLevel: RiskLow, Target: nil},
+		Outcome:       Outcome{Status: StatusSuccess},
+		Chain:         Chain{Sequence: 1, ChainID: "chain-1"},
+		Intent:        nil,
 		Authorization: nil,
 	})
 	signed, err := Sign(unsigned, kp.PrivateKey, "did:agent:test#key-1")
@@ -160,7 +160,7 @@ func TestHashReceiptWithNilOptionalFields(t *testing.T) {
 func TestCanonicalizeUnicodeStrings(t *testing.T) {
 	obj := map[string]any{
 		"\u00e9": "caf\u00e9",
-		"key":   "\u2603",
+		"key":    "\u2603",
 	}
 	got, err := Canonicalize(obj)
 	if err != nil {

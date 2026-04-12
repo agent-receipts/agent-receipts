@@ -67,6 +67,7 @@ type ActionTarget struct {
 type Action struct {
 	ID               string        `json:"id"`
 	Type             string        `json:"type"`
+	ToolName         string        `json:"tool_name,omitempty"`
 	RiskLevel        RiskLevel     `json:"risk_level"`
 	Target           *ActionTarget `json:"target,omitempty"`
 	ParametersHash   string        `json:"parameters_hash,omitempty"`
@@ -134,11 +135,11 @@ type Proof struct {
 
 // AgentReceipt is a signed W3C Verifiable Credential for an agent action.
 type AgentReceipt struct {
-	Context           []string          `json:"@context"`
-	ID                string            `json:"id"`
-	Type              []string          `json:"type"`
-	Version           string            `json:"version"`
-	Issuer            Issuer            `json:"issuer"`
+	Context []string `json:"@context"`
+	ID      string   `json:"id"`
+	Type    []string `json:"type"`
+	Version string   `json:"version"`
+	Issuer  Issuer   `json:"issuer"`
 	// issuanceDate follows W3C VC v1 naming; the protocol spec uses this
 	// instead of VC v2's validFrom.
 	IssuanceDate      string            `json:"issuanceDate"`
