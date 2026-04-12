@@ -72,14 +72,22 @@ class ReceiptStore:
         self._migrate_tool_name()
 
     def _migrate_tool_name(self) -> None:
-        """Add tool_name column to pre-existing databases that lack it."""
+        """Add tool_name column to pre-existing databases that lack it.
+
+        The try/except handles the race where concurrent processes both
+        detect the missing column and one ALTER succeeds before the other.
+        """
         cursor = self._conn.execute("PRAGMA table_info(receipts)")
         columns = [row["name"] for row in cursor.fetchall()]
         if "tool_name" not in columns:
-            self._conn.execute(
-                "ALTER TABLE receipts ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''"
-            )
-            self._conn.commit()
+            try:
+                self._conn.execute(
+                    "ALTER TABLE receipts ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''"
+                )
+                self._conn.commit()
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
 
     def insert(self, receipt: AgentReceipt, receipt_hash: str) -> None:
         """Insert a signed receipt into the store."""
