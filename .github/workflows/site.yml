@@ -40,6 +40,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: site/pnpm-lock.yaml
 
+      - name: Debug pnpm
+        run: |
+          pnpm --version
+          which pnpm
+          head -10 pnpm-lock.yaml
+          grep -c "^---$" pnpm-lock.yaml || true
+          grep -c "lockfileVersion" pnpm-lock.yaml
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
