@@ -78,6 +78,7 @@ export default defineConfig({
             { label: "Configuration", slug: "mcp-proxy/configuration" },
             { label: "Claude Desktop", slug: "mcp-proxy/claude-desktop" },
             { label: "Claude Code", slug: "mcp-proxy/claude-code" },
+            { label: "Codex", slug: "mcp-proxy/codex" },
           ],
         },
         {
