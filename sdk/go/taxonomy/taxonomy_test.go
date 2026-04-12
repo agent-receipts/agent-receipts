@@ -61,9 +61,9 @@ func TestGetActionType(t *testing.T) {
 
 func TestAllActions(t *testing.T) {
 	all := AllActions()
-	// 7 filesystem + 7 system + 1 unknown = 15
-	if len(all) != 15 {
-		t.Errorf("expected 15 action types, got %d", len(all))
+	// 7 filesystem + 7 system + 3 data + 1 unknown = 18
+	if len(all) != 18 {
+		t.Errorf("expected 18 action types, got %d", len(all))
 	}
 }
 
@@ -82,6 +82,46 @@ func TestLoadTaxonomyConfig(t *testing.T) {
 	}
 	if len(mappings) != 2 {
 		t.Errorf("expected 2 mappings, got %d", len(mappings))
+	}
+}
+
+func TestDataActionTypes(t *testing.T) {
+	entry := ResolveActionType("data.api.read")
+	if entry.RiskLevel != receipt.RiskLow {
+		t.Errorf("expected low risk for data.api.read, got %s", entry.RiskLevel)
+	}
+
+	entry = ResolveActionType("data.api.write")
+	if entry.RiskLevel != receipt.RiskMedium {
+		t.Errorf("expected medium risk for data.api.write, got %s", entry.RiskLevel)
+	}
+
+	entry = ResolveActionType("data.api.delete")
+	if entry.RiskLevel != receipt.RiskHigh {
+		t.Errorf("expected high risk for data.api.delete, got %s", entry.RiskLevel)
+	}
+}
+
+func TestClassifyGitHubTool(t *testing.T) {
+	mappings := []TaxonomyMapping{
+		{ToolName: "merge_pull_request", ActionType: "data.api.write"},
+		{ToolName: "list_issues", ActionType: "data.api.read"},
+	}
+
+	result := ClassifyToolCall("merge_pull_request", mappings)
+	if result.ActionType != "data.api.write" {
+		t.Errorf("expected data.api.write, got %s", result.ActionType)
+	}
+	if result.RiskLevel != receipt.RiskMedium {
+		t.Errorf("expected medium risk, got %s", result.RiskLevel)
+	}
+
+	result = ClassifyToolCall("list_issues", mappings)
+	if result.ActionType != "data.api.read" {
+		t.Errorf("expected data.api.read, got %s", result.ActionType)
+	}
+	if result.RiskLevel != receipt.RiskLow {
+		t.Errorf("expected low risk, got %s", result.RiskLevel)
 	}
 }
 

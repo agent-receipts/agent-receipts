@@ -59,6 +59,10 @@ func serve() {
 		rulesPath    = flag.String("rules", "", "Policy rules (YAML file)")
 		serverName   = flag.String("name", "", "Server name for audit trail")
 		issuerDID    = flag.String("issuer", "did:agent:mcp-proxy", "Issuer DID")
+		issuerName   = flag.String("issuer-name", "", "Issuer name (e.g. Claude Code, Codex)")
+		issuerModel  = flag.String("issuer-model", "", "AI model identifier (e.g. claude-sonnet-4-6)")
+		operatorID   = flag.String("operator-id", "", "Operator DID (organisation running the agent)")
+		operatorName = flag.String("operator-name", "", "Operator name (e.g. Anthropic)")
 		principalDID = flag.String("principal", "did:user:unknown", "Principal DID")
 		chainID      = flag.String("chain", "", "Chain ID (auto-generated if empty)")
 		httpAddr     = flag.String("http", "127.0.0.1:8080", "HTTP address for approval endpoints")
@@ -236,11 +240,12 @@ func serve() {
 		if direction == "client_to_server" && msg != nil && msg.IsToolCall() {
 			params, _ := msg.ParseToolCallParams()
 			if params != nil {
-				opType := audit.ClassifyOperation(params.Name)
-				riskScore, reasons := audit.ScoreRisk(params.Name, params.Arguments)
+				toolName := proxy.StripMCPPrefix(params.Name)
+				opType := audit.ClassifyOperation(toolName)
+				riskScore, reasons := audit.ScoreRisk(toolName, params.Arguments)
 
 				decision := engine.Evaluate(policy.EvalContext{
-					ToolName:      params.Name,
+					ToolName:      toolName,
 					ServerName:    *serverName,
 					OperationType: opType,
 					RiskScore:     riskScore,
@@ -260,7 +265,7 @@ func serve() {
 				pendingMu.Lock()
 				pendingCalls[jsonrpcID] = &pendingCall{
 					msgID:     msgID,
-					toolName:  params.Name,
+					toolName:  toolName,
 					arguments: params.Arguments,
 					rawArgs:   redactedArgs,
 					opType:    opType,
@@ -274,7 +279,7 @@ func serve() {
 				var approvedBy string
 
 				if decision.Action == "block" {
-					log.Printf("mcp-proxy: BLOCKED %s (rule: %s, risk: %d)", params.Name, decision.RuleName, riskScore)
+					log.Printf("mcp-proxy: BLOCKED %s (rule: %s, risk: %d)", toolName, decision.RuleName, riskScore)
 					return &proxy.HandlerResult{
 						Block:          true,
 						ClientResponse: proxy.MakeErrorResponse(msg.ID, -32001, fmt.Sprintf("blocked by policy: %s", decision.Reason)),
@@ -283,17 +288,17 @@ func serve() {
 
 				if decision.Action == "pause" {
 					approvalID := generateToken(16)
-					log.Printf("mcp-proxy: PAUSED %s (rule: %s, risk: %d) — approval id: %s", params.Name, decision.RuleName, riskScore, approvalID)
+					log.Printf("mcp-proxy: PAUSED %s (rule: %s, risk: %d) — approval id: %s", toolName, decision.RuleName, riskScore, approvalID)
 					approved := approvals.WaitForApproval(approvalID, 60*time.Second)
 					if !approved {
-						log.Printf("mcp-proxy: DENIED %s (timeout or explicit deny)", params.Name)
+						log.Printf("mcp-proxy: DENIED %s (timeout or explicit deny)", toolName)
 						return &proxy.HandlerResult{
 							Block:          true,
 							ClientResponse: proxy.MakeErrorResponse(msg.ID, -32002, "tool call denied: approval timeout or rejected"),
 						}
 					}
 					approvedBy = "http"
-					log.Printf("mcp-proxy: APPROVED %s", params.Name)
+					log.Printf("mcp-proxy: APPROVED %s", toolName)
 				}
 
 				if approvedBy != "" {
@@ -305,7 +310,7 @@ func serve() {
 				}
 
 				if decision.Action == "flag" {
-					log.Printf("mcp-proxy: FLAGGED %s (rule: %s, risk: %d)", params.Name, decision.RuleName, riskScore)
+					log.Printf("mcp-proxy: FLAGGED %s (rule: %s, risk: %d)", toolName, decision.RuleName, riskScore)
 				}
 			}
 		}
@@ -411,14 +416,27 @@ func serve() {
 				currentSeq := sequence
 				currentPrevHash := prevReceiptHash
 
+				issuer := receipt.Issuer{
+					ID:    *issuerDID,
+					Name:  *issuerName,
+					Model: *issuerModel,
+				}
+				if *operatorID != "" || *operatorName != "" {
+					issuer.Operator = &receipt.Operator{
+						ID:   *operatorID,
+						Name: *operatorName,
+					}
+				}
+
 				unsigned := receipt.Create(receipt.CreateInput{
-					Issuer:    receipt.Issuer{ID: *issuerDID},
+					Issuer:    issuer,
 					Principal: receipt.Principal{ID: *principalDID},
 					Action: receipt.Action{
 						Type:           actionType,
 						ToolName:       pc.toolName,
 						RiskLevel:      riskLevel,
 						ParametersHash: argsHash,
+						Target:         &receipt.ActionTarget{System: *serverName},
 					},
 					Outcome: receipt.Outcome{Status: status},
 					Chain: receipt.Chain{

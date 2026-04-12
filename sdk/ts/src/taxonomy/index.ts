@@ -1,5 +1,6 @@
 export {
 	ALL_ACTIONS,
+	DATA_ACTIONS,
 	FILESYSTEM_ACTIONS,
 	getActionType,
 	resolveActionType,

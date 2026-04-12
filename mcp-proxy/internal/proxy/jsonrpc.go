@@ -1,6 +1,9 @@
 package proxy
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // Message represents a parsed JSON-RPC 2.0 message.
 type Message struct {
@@ -63,6 +66,26 @@ func (m *Message) ParseToolCallParams() (*ToolCallParams, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// StripMCPPrefix removes the MCP server prefix from a tool name.
+// Tool names from MCP clients arrive as "mcp__<server>__<tool>" but downstream
+// classification and receipts should use the bare tool name.
+func StripMCPPrefix(name string) string {
+	if !strings.HasPrefix(name, "mcp__") {
+		return name
+	}
+	// Find the second "__" separator after "mcp__".
+	rest := name[len("mcp__"):]
+	idx := strings.Index(rest, "__")
+	if idx < 0 {
+		return name
+	}
+	tool := rest[idx+len("__"):]
+	if tool == "" {
+		return name
+	}
+	return tool
 }
 
 // IDString returns the message ID as a normalized string for matching purposes.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from agent_receipts.taxonomy.actions import (
     ALL_ACTIONS,
+    DATA_ACTIONS,
     FILESYSTEM_ACTIONS,
     SYSTEM_ACTIONS,
     UNKNOWN_ACTION,
@@ -17,6 +18,7 @@ from agent_receipts.taxonomy.types import ActionTypeEntry, TaxonomyMapping
 __all__ = [
     "ALL_ACTIONS",
     "ActionTypeEntry",
+    "DATA_ACTIONS",
     "ClassificationResult",
     "FILESYSTEM_ACTIONS",
     "SYSTEM_ACTIONS",

@@ -76,6 +76,24 @@ const SYSTEM_ACTIONS: readonly ActionTypeEntry[] = [
 	},
 ];
 
+const DATA_ACTIONS: readonly ActionTypeEntry[] = [
+	{
+		type: "data.api.read",
+		description: "Read data from an external API",
+		risk_level: "low",
+	},
+	{
+		type: "data.api.write",
+		description: "Write data to an external API",
+		risk_level: "medium",
+	},
+	{
+		type: "data.api.delete",
+		description: "Delete data via an external API",
+		risk_level: "high",
+	},
+];
+
 const UNKNOWN_ACTION: ActionTypeEntry = {
 	type: "unknown",
 	description: "Tool call that does not map to any known action type",
@@ -85,6 +103,7 @@ const UNKNOWN_ACTION: ActionTypeEntry = {
 const ALL_ACTIONS: readonly ActionTypeEntry[] = [
 	...FILESYSTEM_ACTIONS,
 	...SYSTEM_ACTIONS,
+	...DATA_ACTIONS,
 	UNKNOWN_ACTION,
 ];
 
@@ -100,4 +119,10 @@ export function resolveActionType(type: string): ActionTypeEntry {
 	return ACTION_MAP.get(type) ?? UNKNOWN_ACTION;
 }
 
-export { ALL_ACTIONS, FILESYSTEM_ACTIONS, SYSTEM_ACTIONS, UNKNOWN_ACTION };
+export {
+	ALL_ACTIONS,
+	DATA_ACTIONS,
+	FILESYSTEM_ACTIONS,
+	SYSTEM_ACTIONS,
+	UNKNOWN_ACTION,
+};
