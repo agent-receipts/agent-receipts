@@ -3,7 +3,7 @@ title: MCP Proxy
 description: Transparent audit proxy for MCP servers with receipt signing, policy enforcement, and risk scoring.
 ---
 
-The MCP Proxy is a transparent stdin/stdout proxy that sits between an MCP client (Claude Desktop, etc.) and any MCP server. It intercepts every tool call and provides cryptographic audit trails, risk scoring, and policy enforcement -- without modifying the server or client.
+The MCP Proxy is a transparent stdin/stdout proxy that sits between an MCP client (Claude Desktop, Claude Code, etc.) and any MCP server. It intercepts every tool call and provides cryptographic audit trails, risk scoring, and policy enforcement -- without modifying the server or client.
 
 **Repository:** [`mcp-proxy/`](https://github.com/agent-receipts/ar/tree/main/mcp-proxy)
 
@@ -22,7 +22,7 @@ The MCP Proxy is a transparent stdin/stdout proxy that sits between an MCP clien
 ## How it works
 
 ```
-MCP Client (Claude)
+MCP Client (Claude Desktop / Claude Code)
     |
     v
  mcp-proxy (stdin/stdout)
@@ -42,7 +42,7 @@ The proxy reads JSON-RPC messages on stdin, processes `tools/call` requests, for
 
 ```bash
 # Install
-go install github.com/agent-receipts/ar/mcp-proxy/cmd/mcp-proxy@latest
+go install github.com/agent-receipts/ar/mcp-proxy/cmd/mcp-proxy@mcp-proxy/v0.2.0
 
 # Wrap any MCP server
 mcp-proxy node /path/to/mcp-server.js
@@ -80,5 +80,32 @@ Add to `claude_desktop_config.json`:
 ```
 
 > **Note:** `claude_desktop_config.json` is not encrypted. Avoid committing it to version control, and prefer sourcing tokens from your OS keychain or a secret manager where possible.
+
+## Claude Code integration
+
+Claude Code uses `claude mcp add-json` to register servers. Use `--scope user` to make the proxy available across all projects:
+
+```bash
+claude mcp add-json github-audited --scope user '{
+  "command": "/Users/YOU/go/bin/mcp-proxy",
+  "args": [
+    "-name", "github",
+    "-key", "/Users/YOU/.agent-receipts/github-proxy.pem",
+    "-receipt-db", "/Users/YOU/.agent-receipts/receipts.db",
+    "/opt/homebrew/bin/mcp-server-github"
+  ],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_TOKEN"
+  }
+}'
+```
+
+Verify registration:
+
+```bash
+claude mcp list
+```
+
+See the [Claude Code integration guide](/mcp-proxy/claude-code/) for a full walkthrough including project-scoped setup and `.mcp.json` configuration.
 
 See [Installation](/mcp-proxy/installation/) to get started, or [Configuration](/mcp-proxy/configuration/) for the full set of options.
