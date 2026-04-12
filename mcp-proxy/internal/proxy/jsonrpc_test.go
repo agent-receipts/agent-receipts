@@ -104,6 +104,27 @@ func TestParseMessageNullID(t *testing.T) {
 	}
 }
 
+func TestStripMCPPrefix(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"mcp__github-audited__merge_pull_request", "merge_pull_request"},
+		{"mcp__github-audited__create_pull_request", "create_pull_request"},
+		{"mcp__some-server__read_file", "read_file"},
+		{"read_file", "read_file"},
+		{"mcp__malformed", "mcp__malformed"},
+		{"", ""},
+		{"mcp____tool", "tool"},
+	}
+	for _, tt := range tests {
+		got := StripMCPPrefix(tt.input)
+		if got != tt.want {
+			t.Errorf("StripMCPPrefix(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestParseMessageBatchReturnsNil(t *testing.T) {
 	line := []byte(`[{"jsonrpc":"2.0","id":1,"method":"test"}]`)
 	msg := ParseMessage(line)

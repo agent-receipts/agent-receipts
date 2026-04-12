@@ -55,6 +55,12 @@ var (
 		{Type: "system.browser.authenticate", Description: "Log into a service", RiskLevel: receipt.RiskHigh},
 	}
 
+	DataActions = []ActionTypeEntry{
+		{Type: "data.api.read", Description: "Read data via API", RiskLevel: receipt.RiskLow},
+		{Type: "data.api.write", Description: "Write data via API", RiskLevel: receipt.RiskMedium},
+		{Type: "data.api.delete", Description: "Delete data via API", RiskLevel: receipt.RiskHigh},
+	}
+
 	UnknownAction = ActionTypeEntry{
 		Type:        "unknown",
 		Description: "Tool call that does not map to any known action type",
@@ -72,14 +78,18 @@ func init() {
 	for _, e := range SystemActions {
 		actionMap[e.Type] = e
 	}
+	for _, e := range DataActions {
+		actionMap[e.Type] = e
+	}
 	actionMap[UnknownAction.Type] = UnknownAction
 }
 
 // AllActions returns all built-in action type entries.
 func AllActions() []ActionTypeEntry {
-	out := make([]ActionTypeEntry, 0, len(FilesystemActions)+len(SystemActions)+1)
+	out := make([]ActionTypeEntry, 0, len(FilesystemActions)+len(SystemActions)+len(DataActions)+1)
 	out = append(out, FilesystemActions...)
 	out = append(out, SystemActions...)
+	out = append(out, DataActions...)
 	out = append(out, UnknownAction)
 	return out
 }
