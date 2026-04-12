@@ -218,8 +218,19 @@ func TestToolNameInReceipt(t *testing.T) {
 	// Taxonomy has no mapping for list_issues → falls back to ClassifyOperation.
 	classification := taxonomy.ClassifyToolCall(toolName, nil)
 	actionType := classification.ActionType
+	riskLevel := classification.RiskLevel
 	if actionType == "unknown" {
 		actionType = audit.ClassifyOperation(toolName)
+		switch actionType {
+		case "read":
+			riskLevel = receipt.RiskLow
+		case "write":
+			riskLevel = receipt.RiskMedium
+		case "delete":
+			riskLevel = receipt.RiskHigh
+		case "execute":
+			riskLevel = receipt.RiskHigh
+		}
 	}
 
 	argsJSON, _ := json.Marshal(args)
@@ -231,7 +242,7 @@ func TestToolNameInReceipt(t *testing.T) {
 		Action: receipt.Action{
 			Type:           actionType,
 			ToolName:       toolName,
-			RiskLevel:      classification.RiskLevel,
+			RiskLevel:      riskLevel,
 			ParametersHash: argsHash,
 		},
 		Outcome: receipt.Outcome{Status: receipt.StatusSuccess},
@@ -263,6 +274,9 @@ func TestToolNameInReceipt(t *testing.T) {
 	}
 	if got.CredentialSubject.Action.Type != "read" {
 		t.Errorf("expected action.type %q, got %q", "read", got.CredentialSubject.Action.Type)
+	}
+	if got.CredentialSubject.Action.RiskLevel != receipt.RiskLow {
+		t.Errorf("expected action.risk_level %q, got %q", receipt.RiskLow, got.CredentialSubject.Action.RiskLevel)
 	}
 }
 

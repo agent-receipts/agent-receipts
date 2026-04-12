@@ -100,7 +100,40 @@ func Open(dbPath string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("init schema: %w", err)
 	}
+	// Migrate pre-existing databases that lack the tool_name column.
+	if err := migrateToolName(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate tool_name: %w", err)
+	}
 	return &Store{db: db}, nil
+}
+
+// migrateToolName adds the tool_name column to existing databases that
+// were created before this field existed. It is a no-op when the column
+// is already present (i.e. the table was just created by the schema DDL).
+func migrateToolName(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(receipts)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var dflt *string
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == "tool_name" {
+			return nil // column already exists
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = db.Exec("ALTER TABLE receipts ADD COLUMN tool_name TEXT NOT NULL DEFAULT ''")
+	return err
 }
 
 // Insert persists a signed receipt with its precomputed hash.

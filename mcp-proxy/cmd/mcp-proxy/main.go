@@ -376,10 +376,22 @@ func serve() {
 				// Emit receipt — hash the request parameters, not the response.
 				classification := taxonomy.ClassifyToolCall(pc.toolName, mappings)
 
-				// Fall back to prefix-based classifier when taxonomy has no mapping.
+				// Fall back to prefix-based classifier when taxonomy has no mapping,
+				// and align the risk level with the resolved operation type.
 				actionType := classification.ActionType
+				riskLevel := classification.RiskLevel
 				if actionType == "unknown" {
 					actionType = audit.ClassifyOperation(pc.toolName)
+					switch actionType {
+					case "read":
+						riskLevel = receipt.RiskLow
+					case "write":
+						riskLevel = receipt.RiskMedium
+					case "delete":
+						riskLevel = receipt.RiskHigh
+					case "execute":
+						riskLevel = receipt.RiskHigh
+					}
 				}
 
 				status := receipt.StatusSuccess
@@ -405,7 +417,7 @@ func serve() {
 					Action: receipt.Action{
 						Type:           actionType,
 						ToolName:       pc.toolName,
-						RiskLevel:      classification.RiskLevel,
+						RiskLevel:      riskLevel,
 						ParametersHash: argsHash,
 					},
 					Outcome: receipt.Outcome{Status: status},
