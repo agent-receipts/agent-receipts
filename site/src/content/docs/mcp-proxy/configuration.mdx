@@ -156,3 +156,29 @@ BEACON_ENCRYPTION_KEY="my-passphrase" mcp-proxy node server.js
 ```
 
 Key derivation uses Argon2id (t=1, m=64MB, p=4). Encrypted fields are stored with an `enc:` prefix and transparently decrypted on retrieval.
+
+## Troubleshooting
+
+### Port conflict when multiple MCP clients use the proxy
+
+Each `mcp-proxy` instance binds an HTTP server for the approval workflow (default `127.0.0.1:8080`). If two or more MCP clients launch the same proxy simultaneously — for example, Claude Desktop and Claude Code, or Cursor and a custom agent — the second instance will fail with:
+
+```
+listen tcp 127.0.0.1:8080: bind: address already in use
+```
+
+**Fix:** assign each instance a different port with `-http`:
+
+```bash
+# First client uses the default
+mcp-proxy -name github ... /path/to/server
+
+# Second client uses a different port
+mcp-proxy -name github -http 127.0.0.1:8081 ... /path/to/server
+```
+
+Each instance can also use separate `-db` and `-receipt-db` paths if you want isolated audit trails, or share the same databases if you want a unified log.
+
+:::note
+The approval HTTP server is only needed when policy rules use the `pause` action. If you don't use approval workflows, the port conflict is harmless — the proxy logs the error but continues to function normally.
+:::

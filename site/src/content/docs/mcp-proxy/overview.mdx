@@ -122,8 +122,8 @@ claude mcp list
 
 See the [Claude Code integration guide](/mcp-proxy/claude-code/) for a full walkthrough including project-scoped setup and `.mcp.json` configuration.
 
-:::note
-If both Claude Desktop and Claude Code run simultaneously, the second instance will fail to bind the default approval port. Use `-http 127.0.0.1:8081` (or any free port) on one of them to avoid the conflict.
+:::tip
+Running multiple MCP clients simultaneously? See [Troubleshooting: port conflicts](/mcp-proxy/configuration/#port-conflict-when-multiple-mcp-clients-use-the-proxy) in the configuration guide.
 :::
 
 ## What receipts look like
