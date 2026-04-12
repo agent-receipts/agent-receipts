@@ -11,7 +11,7 @@ The MCP Proxy is a transparent stdin/stdout proxy that sits between an MCP clien
 
 - **Risk scoring** -- scores every tool call 0-100 based on operation type, sensitive keywords, and patterns
 - **Operation classification** -- classifies calls as read, write, delete, or execute by tool name
-- **Action taxonomy** -- classify tool calls using configurable taxonomy mappings, with a bundled config for GitHub MCP server tools
+- **Action taxonomy** -- classifies tool calls using configurable taxonomy mappings, with a bundled config for GitHub MCP server tools
 - **MCP prefix stripping** -- automatically strips `mcp__<server>__` prefixes so receipts and classification use clean tool names
 - **Policy enforcement** -- YAML rules engine with four actions: pass, flag, pause (approval required), and block
 - **Approval workflows** -- HTTP endpoints for async approval of paused operations
@@ -45,7 +45,7 @@ The proxy reads JSON-RPC messages on stdin, processes `tools/call` requests, for
 
 ```bash
 # Install
-go install github.com/agent-receipts/ar/mcp-proxy/cmd/mcp-proxy@mcp-proxy/v0.2.0
+go install github.com/agent-receipts/ar/mcp-proxy/cmd/mcp-proxy@latest
 
 # Wrap any MCP server
 mcp-proxy node /path/to/mcp-server.js
@@ -128,7 +128,7 @@ Running multiple MCP clients simultaneously? See [Troubleshooting: port conflict
 
 ## What receipts look like
 
-Each tool call produces a signed W3C Verifiable Credential:
+Each tool call produces a signed W3C Verifiable Credential. Key fields shown (abbreviated — full receipts include `@context`, `id`, `type`, `issuanceDate`, and `proof`):
 
 ```json
 {
@@ -158,6 +158,6 @@ Each tool call produces a signed W3C Verifiable Credential:
 }
 ```
 
-Receipts are Ed25519-signed, hash-chained per session, and stored in a local SQLite database. Use `mcp-proxy list`, `inspect`, and `verify` to query and validate them.
+Receipts are Ed25519-signed, hash-chained per session, and stored in a local SQLite database. Use `mcp-proxy list`, `mcp-proxy inspect`, and `mcp-proxy verify` to query and validate them.
 
 See [Installation](/mcp-proxy/installation/) to get started, or [Configuration](/mcp-proxy/configuration/) for the full set of options.
