@@ -20,7 +20,7 @@ class TestActionCounts:
         assert len(SYSTEM_ACTIONS) == 7
 
     def test_all_actions_count(self) -> None:
-        assert len(ALL_ACTIONS) == 15
+        assert len(ALL_ACTIONS) == 18
 
 
 class TestUnknownAction:

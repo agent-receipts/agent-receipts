@@ -116,6 +116,7 @@ func TestStripMCPPrefix(t *testing.T) {
 		{"mcp__malformed", "mcp__malformed"},
 		{"", ""},
 		{"mcp____tool", "tool"},
+		{"mcp__server__", "mcp__server__"},
 	}
 	for _, tt := range tests {
 		got := StripMCPPrefix(tt.input)

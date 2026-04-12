@@ -17,8 +17,8 @@ describe("action taxonomy", () => {
 		expect(SYSTEM_ACTIONS).toHaveLength(7);
 	});
 
-	it("has 15 total actions (filesystem + system + unknown)", () => {
-		expect(ALL_ACTIONS).toHaveLength(15);
+	it("has 18 total actions (filesystem + system + data + unknown)", () => {
+		expect(ALL_ACTIONS).toHaveLength(18);
 	});
 
 	it("all action types are unique", () => {

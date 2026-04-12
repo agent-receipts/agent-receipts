@@ -56,9 +56,9 @@ var (
 	}
 
 	DataActions = []ActionTypeEntry{
-		{Type: "data.api.read", Description: "Read data via API", RiskLevel: receipt.RiskLow},
-		{Type: "data.api.write", Description: "Write data via API", RiskLevel: receipt.RiskMedium},
-		{Type: "data.api.delete", Description: "Delete data via API", RiskLevel: receipt.RiskHigh},
+		{Type: "data.api.read", Description: "Read data from an external API", RiskLevel: receipt.RiskLow},
+		{Type: "data.api.write", Description: "Write data to an external API", RiskLevel: receipt.RiskMedium},
+		{Type: "data.api.delete", Description: "Delete data via an external API", RiskLevel: receipt.RiskHigh},
 	}
 
 	UnknownAction = ActionTypeEntry{

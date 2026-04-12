@@ -80,6 +80,24 @@ SYSTEM_ACTIONS: list[ActionTypeEntry] = [
     ),
 ]
 
+DATA_ACTIONS: list[ActionTypeEntry] = [
+    ActionTypeEntry(
+        type="data.api.read",
+        description="Read data from an external API",
+        risk_level="low",
+    ),
+    ActionTypeEntry(
+        type="data.api.write",
+        description="Write data to an external API",
+        risk_level="medium",
+    ),
+    ActionTypeEntry(
+        type="data.api.delete",
+        description="Delete data via an external API",
+        risk_level="high",
+    ),
+]
+
 UNKNOWN_ACTION: ActionTypeEntry = ActionTypeEntry(
     type="unknown",
     description="Tool call that does not map to any known action type",
@@ -89,6 +107,7 @@ UNKNOWN_ACTION: ActionTypeEntry = ActionTypeEntry(
 ALL_ACTIONS: list[ActionTypeEntry] = [
     *FILESYSTEM_ACTIONS,
     *SYSTEM_ACTIONS,
+    *DATA_ACTIONS,
     UNKNOWN_ACTION,
 ]
 

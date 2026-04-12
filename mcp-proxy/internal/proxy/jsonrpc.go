@@ -81,7 +81,11 @@ func StripMCPPrefix(name string) string {
 	if idx < 0 {
 		return name
 	}
-	return rest[idx+len("__"):]
+	tool := rest[idx+len("__"):]
+	if tool == "" {
+		return name
+	}
+	return tool
 }
 
 // IDString returns the message ID as a normalized string for matching purposes.
