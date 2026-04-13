@@ -540,9 +540,11 @@ func serve() {
 				}
 
 				// Update tool call with receipt signing duration.
-				receiptSignUs := time.Since(receiptStart).Microseconds()
-				if updateErr := auditDB.UpdateReceiptSignUs(tcID, receiptSignUs); updateErr != nil {
-					log.Printf("mcp-proxy: update receipt sign timing: %v", updateErr)
+				if tcID > 0 {
+					receiptSignUs := time.Since(receiptStart).Microseconds()
+					if updateErr := auditDB.UpdateReceiptSignUs(tcID, receiptSignUs); updateErr != nil {
+						log.Printf("mcp-proxy: update receipt sign timing: %v", updateErr)
+					}
 				}
 			}
 		}

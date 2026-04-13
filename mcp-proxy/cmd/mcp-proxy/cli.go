@@ -287,15 +287,16 @@ func cmdTiming(args []string) {
 	fmt.Printf("Tool call timing (%d calls)\n", st.Total)
 
 	if len(st.ByTool) > 0 {
-		fmt.Println("\nPer-tool averages (us):")
-		fmt.Printf("%-30s %6s %10s %8s %8s %10s\n", "TOOL", "COUNT", "UPSTREAM", "POLICY", "RECEIPT", "TOTAL(ms)")
+		fmt.Println("\nPer-tool averages:")
+		fmt.Printf("%-30s %6s %12s %10s %11s %13s %10s\n", "TOOL", "COUNT", "UPSTREAM(us)", "POLICY(us)", "RECEIPT(us)", "APPROVAL(us)", "TOTAL(ms)")
 		for _, tt := range st.ByTool {
-			fmt.Printf("%-30s %6d %10s %8s %8s %10s\n",
+			fmt.Printf("%-30s %6d %12s %10s %11s %13s %10s\n",
 				truncate(tt.ToolName, 30),
 				tt.Count,
 				fmtOptInt(tt.AvgUpstreamUs),
 				fmtOptInt(tt.AvgPolicyUs),
 				fmtOptInt(tt.AvgReceiptUs),
+				fmtOptInt(tt.AvgApprovalUs),
 				fmtOptInt(tt.AvgDurationMs),
 			)
 		}

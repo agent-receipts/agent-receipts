@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -226,7 +227,10 @@ func (s *Store) InsertToolCall(tc ToolCallRecord) (int64, error) {
 // UpdateReceiptSignUs updates the receipt_sign_us timing for a tool call.
 func (s *Store) UpdateReceiptSignUs(toolCallID int64, us int64) error {
 	_, err := s.db.Exec(`UPDATE tool_calls SET receipt_sign_us = ? WHERE id = ?`, us, toolCallID)
-	return err
+	if err != nil {
+		return fmt.Errorf("update receipt_sign_us: %w", err)
+	}
+	return nil
 }
 
 // CreateIntentContext creates a new intent grouping.
@@ -412,9 +416,12 @@ func (s *Store) percentiles(column, sessionID string) (*Percentiles, error) {
 	}
 
 	valueAt := func(pct float64) (int64, error) {
-		idx := int(float64(total)*pct) - 1
+		idx := int(math.Ceil(float64(total)*pct)) - 1
 		if idx < 0 {
 			idx = 0
+		}
+		if idx >= total {
+			idx = total - 1
 		}
 		q := fmt.Sprintf("SELECT %s FROM tool_calls %s ORDER BY %s LIMIT 1 OFFSET ?",
 			column, where, column)
@@ -446,7 +453,7 @@ func floatToInt64(f *float64) *int64 {
 	if f == nil {
 		return nil
 	}
-	v := int64(*f)
+	v := int64(math.Round(*f))
 	return &v
 }
 
