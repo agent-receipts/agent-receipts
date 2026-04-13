@@ -94,6 +94,7 @@ func serve() {
 		fmt.Fprintf(os.Stderr, "Usage: mcp-proxy [flags] <command> [args...]\n")
 		fmt.Fprintf(os.Stderr, "  Wraps an MCP server with audit, receipts, and policy enforcement.\n\n")
 		fmt.Fprintf(os.Stderr, "Subcommands: serve, list, inspect, verify, export, stats\n\n")
+		fmt.Fprintf(os.Stderr, "  -version\n\tPrint version and exit\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
