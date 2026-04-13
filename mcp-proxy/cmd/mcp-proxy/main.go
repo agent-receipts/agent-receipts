@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -191,8 +192,14 @@ func serve() {
 	pendingCalls := make(map[string]*pendingCall)
 	var pendingMu sync.Mutex
 
-	// Start HTTP server for approvals.
-	go startHTTPServer(*httpAddr, approvals, approvalToken)
+	// Start HTTP server for approvals only when pause rules exist.
+	if engine.HasPauseRules() {
+		ln, err := net.Listen("tcp", *httpAddr)
+		if err != nil {
+			log.Fatalf("mcp-proxy: http server: %v", err)
+		}
+		go startHTTPServer(ln, approvals, approvalToken)
+	}
 
 	handler := func(direction string, raw []byte, msg *proxy.Message) *proxy.HandlerResult {
 		method := ""
@@ -490,8 +497,9 @@ func generateToken(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func startHTTPServer(addr string, approvals *audit.ApprovalManager, token string) {
-	http.HandleFunc("/api/tool-calls/", func(w http.ResponseWriter, r *http.Request) {
+func startHTTPServer(ln net.Listener, approvals *audit.ApprovalManager, token string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/tool-calls/", func(w http.ResponseWriter, r *http.Request) {
 		// Validate bearer token.
 		auth := r.Header.Get("Authorization")
 		if auth != "Bearer "+token {
@@ -527,9 +535,9 @@ func startHTTPServer(addr string, approvals *audit.ApprovalManager, token string
 		}
 	})
 
-	log.Printf("mcp-proxy: approval HTTP server on %s (token printed below)", addr)
+	log.Printf("mcp-proxy: approval HTTP server on %s (token printed below)", ln.Addr())
 	fmt.Fprintln(os.Stderr, "APPROVAL_TOKEN="+token)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := http.Serve(ln, mux); err != nil {
 		log.Fatalf("mcp-proxy: http server: %v", err)
 	}
 }
