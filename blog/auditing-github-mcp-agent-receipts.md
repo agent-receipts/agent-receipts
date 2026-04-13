@@ -113,12 +113,7 @@ actually looks like:
   "type": ["VerifiableCredential", "AgentReceipt"],
   "version": "0.1.0",
   "issuer": {
-    "id": "did:agent:mcp-proxy",
-    "name": "Claude Code",
-    "operator": {
-      "id": "did:web:anthropic.com",
-      "name": "Anthropic"
-    }
+    "id": "did:agent:mcp-proxy"
   },
   "issuanceDate": "2026-04-12T06:32:02Z",
   "credentialSubject": {
@@ -187,7 +182,7 @@ double-dash flags (`--db`) when the binary uses single-dash Go flags (`-db`).
 
 So I filed both bugs via the proxy:
 
-- [#109 — tool name not stored in receipt, action.type always unknown](https://github.com/agent-receipts/ar/issues/109) — the tool name was never wired from JSON-RPC interception through to the classifier or the stored receipt, fixed in v0.2.0 of the proxy
+- [#109 — tool name not stored in receipt, action.type always unknown](https://github.com/agent-receipts/ar/issues/109) — the tool name was never wired from JSON-RPC interception through to the classifier or the stored receipt, fixed in v0.3.3 of the proxy
 - [#101 — Docs: CLI reference shows double-dash flags but binary uses single-dash](https://github.com/agent-receipts/ar/issues/101)
 
 Those GitHub API calls — `create_issue`, `update_issue` — have signed receipts from
@@ -218,7 +213,7 @@ audit log.
 
 ## What's still rough
 
-This is early days — proxy v0.2.0, SDKs v0.3.0. A few things I hit during the walkthrough:
+This is early days — proxy v0.3.3, SDKs v0.3.0. A few things I hit during the walkthrough:
 
 **Placeholder DIDs.** The issuer shows as `did:agent:mcp-proxy` and principal as
 `did:user:unknown`. These are placeholders — the DID method strategy is being worked
