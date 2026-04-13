@@ -107,6 +107,17 @@ func (e *Engine) Evaluate(ctx EvalContext) Decision {
 	return best
 }
 
+// HasPauseRules reports whether any enabled rule uses the "pause" action.
+// When no pause rules exist, the approval HTTP server is unnecessary.
+func (e *Engine) HasPauseRules() bool {
+	for _, rule := range e.rules {
+		if rule.Enabled && rule.Action == "pause" {
+			return true
+		}
+	}
+	return false
+}
+
 func matchesRule(rule Rule, ctx EvalContext) bool {
 	if rule.ToolPattern != "" {
 		if !globMatch(rule.ToolPattern, ctx.ToolName) {

@@ -120,3 +120,33 @@ func TestDisabledRulesSkipped(t *testing.T) {
 		t.Errorf("expected pass (rule disabled), got %s", d.Action)
 	}
 }
+
+func TestHasPauseRules(t *testing.T) {
+	// Default rules include pause_high_risk.
+	engine := NewEngine(DefaultRules())
+	if !engine.HasPauseRules() {
+		t.Error("expected HasPauseRules=true for default rules")
+	}
+
+	// Flag-only rules should not require the approval server.
+	engine = NewEngine([]Rule{
+		{Name: "flag_only", Enabled: true, Action: "flag"},
+	})
+	if engine.HasPauseRules() {
+		t.Error("expected HasPauseRules=false for flag-only rules")
+	}
+
+	// Empty rules.
+	engine = NewEngine([]Rule{})
+	if engine.HasPauseRules() {
+		t.Error("expected HasPauseRules=false for empty rules")
+	}
+
+	// Disabled pause rule should not count.
+	engine = NewEngine([]Rule{
+		{Name: "disabled_pause", Enabled: false, Action: "pause"},
+	})
+	if engine.HasPauseRules() {
+		t.Error("expected HasPauseRules=false when pause rule is disabled")
+	}
+}
