@@ -1,4 +1,4 @@
-# ADR-0004: YAML for Policy Rule Configuration (mcp-proxy)
+# ADR-0006: YAML for Policy Rule Configuration (mcp-proxy)
 
 ## Status
 
