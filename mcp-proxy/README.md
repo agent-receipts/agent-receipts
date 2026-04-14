@@ -112,11 +112,15 @@ rules:
 
 Actions: `pass` (log only), `flag` (log + highlight), `pause` (wait for approval), `block` (reject).
 
-When a tool call is paused, approve or deny via HTTP:
+When a tool call is paused, approve or deny via HTTP. The approval URL and bearer token are logged to stderr at startup (the default port is random; pass `-http 127.0.0.1:PORT` to pin). Copy the token from the startup line and export it before running the curls:
 
 ```sh
-curl -X POST http://localhost:8080/api/tool-calls/{id}/approve
-curl -X POST http://localhost:8080/api/tool-calls/{id}/deny
+export APPROVAL_TOKEN=<token-from-stderr>
+
+curl -X POST http://127.0.0.1:PORT/api/tool-calls/{id}/approve \
+  -H "Authorization: Bearer $APPROVAL_TOKEN"
+curl -X POST http://127.0.0.1:PORT/api/tool-calls/{id}/deny \
+  -H "Authorization: Bearer $APPROVAL_TOKEN"
 ```
 
 Paused calls auto-deny after 60 seconds (fail-safe).
