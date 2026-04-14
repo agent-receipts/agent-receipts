@@ -9,7 +9,7 @@ Accepted
 Each Agent Receipts SDK needs a local storage backend for signed receipts. Receipts are append-only, JSON-serialized W3C Verifiable Credentials that form hash-linked chains. The storage layer must support:
 
 - Persistence across process restarts.
-- Querying by chain ID, action type, risk level, timestamp, and tool name.
+- Querying by chain ID, action type, risk level, and timestamp.
 - Chain integrity verification (walking `previous_receipt_hash` links).
 - Cross-platform operation with zero or minimal infrastructure.
 - Identical semantics across three SDK languages (Go, Python, TypeScript).
@@ -20,7 +20,7 @@ We evaluated the following alternatives:
 
 - **PostgreSQL / MySQL:** Full-featured, but require a running server process, connection configuration, and operational overhead (backups, upgrades, auth). For a local-first SDK that ships as a library, forcing users to run a separate database server is a significant adoption barrier. Network round-trips also add latency to every receipt write.
 - **Flat files (JSON, JSONL, CSV):** Zero dependencies, but querying requires full scans. Filtering receipts by risk level, timestamp range, or action type — operations the CLI and dashboard use constantly — would degrade linearly with receipt count. Concurrent writes require manual file locking, and atomic multi-record operations (e.g., storing a receipt and updating chain state) are error-prone without transactions.
-- **Embedded key-value stores (LevelDB, RocksDB, LMDB, BoltDB):** Low operational overhead and good write throughput, but querying on multiple fields requires maintaining secondary indexes manually. The receipt schema has six indexed columns; reimplementing a query planner on top of a KV store adds complexity with no benefit over SQLite's built-in query engine.
+- **Embedded key-value stores (LevelDB, RocksDB, LMDB, BoltDB):** Low operational overhead and good write throughput, but querying on multiple fields requires maintaining secondary indexes manually. The SDK receipt stores index the common query dimensions (`chain_id`, `action_type`, `risk_level`, `timestamp`, with Python also indexing `status`); reimplementing those secondary indexes and query planning on top of a KV store adds complexity with no benefit over SQLite's built-in query engine.
 - **In-memory only:** Useful for tests (all three SDKs support `:memory:` mode), but unsuitable as the default — receipts must survive process restarts to serve as an audit trail.
 
 Related: #20 (parent issue).
@@ -33,7 +33,7 @@ Use SQLite as the default local storage backend in all three SDK implementations
 - **Python:** `sqlite3` from the standard library.
 - **TypeScript:** `node:sqlite` (`DatabaseSync`) from the Node.js built-in API.
 
-All three implementations use WAL (Write-Ahead Logging) mode for concurrent read access and share an identical schema: a `receipts` table with columns for chain ID, sequence number, action type, tool name, risk level, status, timestamp, issuer/principal IDs, the full receipt JSON, receipt hash, and previous receipt hash, plus indexes on the most common query dimensions.
+All three implementations share a common schema: a `receipts` table with columns for chain ID, sequence number, action type, tool name, risk level, status, timestamp, issuer/principal IDs, the full receipt JSON, receipt hash, and previous receipt hash, plus indexes on the most common query dimensions. The Go implementation enables WAL (Write-Ahead Logging) mode for concurrent read access; the Python and TypeScript implementations currently use SQLite's default journal mode.
 
 Key reasons:
 
