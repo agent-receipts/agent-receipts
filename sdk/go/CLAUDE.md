@@ -4,7 +4,7 @@ Go SDK for the Action Receipts protocol. See [agent-receipts/spec](https://githu
 
 ## Toolchain
 
-- **Language:** Go 1.22+
+- **Language:** Go 1.26+ (CI pins `go-version: "1.26"`; `go.mod` uses `go 1.26.1`)
 - **SQLite:** modernc.org/sqlite (pure Go, no CGO)
 - **Testing:** `go test`
 

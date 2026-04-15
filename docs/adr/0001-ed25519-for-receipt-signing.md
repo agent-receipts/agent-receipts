@@ -25,7 +25,7 @@ Key reasons:
 - **Deterministic signatures** — no nonce reuse risk, eliminating an entire class of implementation vulnerabilities present in ECDSA.
 - **Compact keys (32 bytes) and signatures (64 bytes)** — critical for receipt chains where every byte compounds.
 - **Fast verification and batch verification** — important when auditing large receipt chains. Ed25519 supports batch verification, allowing N signatures to be verified faster than N individual verifications.
-- **Excellent cross-language support** — available in Go stdlib (`crypto/ed25519`), libsodium, PyNaCl, and the Web Crypto API.
+- **Excellent cross-language support** — available in Go stdlib (`crypto/ed25519`), libsodium, the Web Crypto API, and Python via either `cryptography` (which the Python SDK uses) or PyNaCl.
 - **W3C VC ecosystem alignment** — Ed25519 is a first-class algorithm in the Verifiable Credentials ecosystem, which aligns with our envelope format and `Ed25519Signature2020` proof type.
 - **No patent encumbrances.**
 - **Designed for constant-time implementation** — the algorithm structure facilitates timing side-channel resistance, though this property ultimately depends on each library's implementation (see Security Considerations).

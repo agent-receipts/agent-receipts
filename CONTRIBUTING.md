@@ -18,9 +18,9 @@ cross-sdk-tests/  Cross-language receipt verification tests
 cd sdk/go && go test ./...
 ```
 
-**TypeScript**
+**TypeScript** (pnpm — `corepack` activates the version pinned in `package.json`)
 ```bash
-cd sdk/ts && npm install && npm test
+cd sdk/ts && corepack enable && pnpm install --frozen-lockfile && pnpm test
 ```
 
 **Python**
