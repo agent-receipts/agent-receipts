@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Proposed** — community input is being collected at https://github.com/orgs/agent-receipts/discussions/166 (open through **2026-05-13**). Absent compelling counter-arguments, the Proposed Direction below ships as the accepted decision after that date, in a follow-up PR that flips this ADR's status to Accepted and summarizes the discussion outcome.
 
 ## Context
 
@@ -24,11 +24,11 @@ We evaluated the following approaches:
 
 Related: #20 (parent issue), spec §9.6 (open question #6), ADR-0001 (key lifecycle), ADR-0003 (DID ecosystem coupling risk).
 
-## Decision
+## Proposed Direction
 
-*This ADR is in Proposed status. No decision has been made — community input is being sought.*
+This ADR is in Proposed status. The direction below reflects current thinking but is genuinely open to revision based on community input — see Status above for how to weigh in and the timeline.
 
-The leading candidate is a tiered approach:
+The proposed direction is a tiered approach:
 
 1. **`did:key` as the default.** All SDKs ship with built-in `did:key` generation and resolution. This is the zero-configuration path: generate an Ed25519 key pair, derive the `did:key` identifier, and start signing receipts. No external infrastructure required.
 
