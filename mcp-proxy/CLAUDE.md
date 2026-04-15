@@ -4,7 +4,7 @@ MCP proxy with action receipts, policy engine, risk scoring, and intent tracking
 
 ## Toolchain
 
-- **Language:** Go 1.22+
+- **Language:** Go 1.26+ (CI pins `go-version: "1.26"`; `go.mod` uses `go 1.26.1`)
 - **SQLite:** modernc.org/sqlite (pure Go, no CGO)
 - **Policy:** YAML rules (gopkg.in/yaml.v3)
 - **Testing:** `go test`
