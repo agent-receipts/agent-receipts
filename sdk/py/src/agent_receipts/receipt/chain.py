@@ -23,13 +23,18 @@ class ReceiptVerification:
     sequence_valid: bool
 
 
+def _empty_receipts() -> list[ReceiptVerification]:
+    """Typed default for ChainVerification.receipts (satisfies pyright strict)."""
+    return []
+
+
 @dataclass
 class ChainVerification:
     """Result of verifying an entire chain."""
 
     valid: bool
     length: int
-    receipts: list[ReceiptVerification] = field(default_factory=list)
+    receipts: list[ReceiptVerification] = field(default_factory=_empty_receipts)
     broken_at: int = -1
     error: str = ""
     # Non-empty when one or more receipts carry response_hash but no response
