@@ -1,6 +1,7 @@
 package receipt
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,26 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
+
+// marshalNoHTMLEscape serialises v to JSON without HTML-escaping <, >, or &.
+// Go's encoding/json.Marshal HTML-escapes those characters by default; RFC 8785
+// requires verbatim emission.
+func marshalNoHTMLEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	// Encode appends a trailing newline; strip it.
+	b := buf.Bytes()
+	if len(b) > 0 && b[len(b)-1] == '\n' {
+		b = b[:len(b)-1]
+	}
+	return b, nil
+}
 
 // SHA256Hash computes the SHA-256 hash of data and returns "sha256:<hex>".
 func SHA256Hash(data string) string {
@@ -38,7 +58,9 @@ func HashReceipt(r AgentReceipt) (string, error) {
 // Canonicalize serialises v to RFC 8785 canonical JSON.
 func Canonicalize(v any) (string, error) {
 	// Marshal to JSON first so we work with a generic representation.
-	raw, err := json.Marshal(v)
+	// We need to avoid html-escaping here too. Use a custom approach:
+	// marshal to get a JSON intermediate, then unmarshal to a generic tree.
+	raw, err := marshalNoHTMLEscape(v)
 	if err != nil {
 		return "", err
 	}
@@ -62,8 +84,7 @@ func canonicalizeValue(v any) (string, error) {
 	case float64:
 		return canonicalizeNumber(val)
 	case string:
-		b, _ := json.Marshal(val)
-		return string(b), nil
+		return canonicalizeString(val), nil
 	case []any:
 		parts := make([]string, 0, len(val))
 		for _, item := range val {
@@ -79,21 +100,80 @@ func canonicalizeValue(v any) (string, error) {
 		for k := range val {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		// RFC 8785 §3.2.3: sort by UTF-16 code-unit order, not UTF-8 byte order.
+		sort.Slice(keys, func(i, j int) bool {
+			return utf16Less(keys[i], keys[j])
+		})
 
 		parts := make([]string, 0, len(val))
 		for _, k := range keys {
-			keyStr, _ := json.Marshal(k)
+			keyStr := canonicalizeString(k)
 			valStr, err := canonicalizeValue(val[k])
 			if err != nil {
 				return "", err
 			}
-			parts = append(parts, string(keyStr)+":"+valStr)
+			parts = append(parts, keyStr+":"+valStr)
 		}
 		return "{" + strings.Join(parts, ",") + "}", nil
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}
+}
+
+// utf16Less reports whether a sorts before b in UTF-16 code-unit order,
+// as required by RFC 8785 §3.2.3.
+func utf16Less(a, b string) bool {
+	ua := utf16.Encode([]rune(a))
+	ub := utf16.Encode([]rune(b))
+	n := len(ua)
+	if len(ub) < n {
+		n = len(ub)
+	}
+	for i := 0; i < n; i++ {
+		if ua[i] != ub[i] {
+			return ua[i] < ub[i]
+		}
+	}
+	return len(ua) < len(ub)
+}
+
+// canonicalizeString serialises a Go string to its RFC 8785 JSON form.
+// RFC 8785 requires minimal escaping per ES6 JSON.stringify:
+//   - U+0022 (") → \"
+//   - U+005C (\) → \\
+//   - U+0000–U+001F → \uXXXX (with named shortcuts for \b \t \n \f \r)
+//
+// Notably, <, >, and & are NOT escaped (unlike Go's encoding/json default).
+// U+2028 and U+2029 are NOT escaped (ES6 behaviour, not ES5).
+func canonicalizeString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\f':
+			b.WriteString(`\f`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		default:
+			if r < 0x0020 {
+				fmt.Fprintf(&b, `\u%04x`, r)
+			} else {
+				b.WriteRune(r)
+			}
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // canonicalizeNumber formats a float64 according to RFC 8785 §3.2.2.3,

@@ -510,10 +510,10 @@ func serve() {
 				}
 
 				var argsHash string
-				if argsJSON, jsonErr := json.Marshal(pc.arguments); jsonErr == nil {
-					argsHash = receipt.SHA256Hash(string(argsJSON))
+				if canonical, canonErr := receipt.Canonicalize(pc.arguments); canonErr == nil {
+					argsHash = receipt.SHA256Hash(canonical)
 				} else {
-					log.Printf("mcp-proxy: marshal args for hash: %v", jsonErr)
+					log.Printf("mcp-proxy: canonicalize args for hash: %v", canonErr)
 				}
 
 				receiptStart := time.Now()
