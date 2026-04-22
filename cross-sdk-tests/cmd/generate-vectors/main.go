@@ -64,14 +64,6 @@ type terminalChainSection struct {
 	ExpectedValidWithRequireTerminal   bool              `json:"expectedValidWithRequireTerminal"`
 }
 
-func mustMarshal(v any) json.RawMessage {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 func main() {
 	// Read the TS vectors to get the shared keypair and unsigned receipt.
 	// Resolve paths relative to the module root (cross-sdk-tests/) so this
@@ -172,7 +164,8 @@ func main() {
 	fmt.Println("wrote v020_vectors.json")
 }
 
-// generateV020Vectors builds and writes v020_vectors.json using a fresh key pair.
+// generateV020Vectors builds and writes v020_vectors.json using the shared keypair
+// from ts_vectors.json (passed in as keys).
 //
 // Fields that Create/Sign populate from the clock and the UUID package are
 // overridden with fixed values so the output is byte-identical across runs.

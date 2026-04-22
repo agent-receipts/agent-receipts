@@ -59,10 +59,9 @@ export function createReceipt(input: CreateReceiptInput): UnsignedAgentReceipt {
 	};
 
 	// Build chain with optional terminal.
-	const chain: Chain = {
-		...input.chain,
-		...(input.terminal && { terminal: true as const }),
-	};
+	const chain: Chain = input.terminal
+		? { ...input.chain, terminal: true }
+		: { ...input.chain };
 
 	return {
 		"@context": CONTEXT,

@@ -1,5 +1,7 @@
 package receipt
 
+import "strconv"
+
 // ReceiptVerification holds the verification result for a single receipt in a chain.
 type ReceiptVerification struct {
 	Index          int    `json:"index"`
@@ -69,7 +71,7 @@ func VerifyChain(receipts []AgentReceipt, publicKeyPEM string, opts ...ChainVeri
 				Valid:    false,
 				Length:   0,
 				BrokenAt: 0,
-				Error:    "expected chain length does not match: expected " + itoa(*opt.ExpectedLength) + ", got 0",
+				Error:    "expected chain length does not match: expected " + strconv.Itoa(*opt.ExpectedLength) + ", got 0",
 			}
 		}
 		return ChainVerification{Valid: true, Length: 0, BrokenAt: -1}
@@ -146,7 +148,7 @@ func VerifyChain(receipts []AgentReceipt, publicKeyPEM string, opts ...ChainVeri
 					Length:   len(receipts),
 					Receipts: results,
 					BrokenAt: brokenAt,
-					Error:    "receipt after terminal: receipt at index " + itoa(i+1) + " follows a terminal receipt at index " + itoa(i),
+					Error:    "receipt after terminal: receipt at index " + strconv.Itoa(i+1) + " follows a terminal receipt at index " + strconv.Itoa(i),
 				}
 			}
 		}
@@ -172,7 +174,7 @@ func VerifyChain(receipts []AgentReceipt, publicKeyPEM string, opts ...ChainVeri
 		if opt.ExpectedLength != nil && len(receipts) != *opt.ExpectedLength {
 			cv.Valid = false
 			cv.BrokenAt = len(receipts) - 1
-			cv.Error = "expected chain length does not match: expected " + itoa(*opt.ExpectedLength) + ", got " + itoa(len(receipts))
+			cv.Error = "expected chain length does not match: expected " + strconv.Itoa(*opt.ExpectedLength) + ", got " + strconv.Itoa(len(receipts))
 		} else if opt.ExpectedFinalHash != "" {
 			lastHash, err := HashReceipt(receipts[len(receipts)-1])
 			if err != nil || lastHash != opt.ExpectedFinalHash {
@@ -193,28 +195,4 @@ func VerifyChain(receipts []AgentReceipt, publicKeyPEM string, opts ...ChainVeri
 	}
 
 	return cv
-}
-
-// itoa converts an integer to a string (avoids importing strconv in chain.go).
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := false
-	if n < 0 {
-		neg = true
-		n = -n
-	}
-	var buf [20]byte
-	pos := len(buf)
-	for n > 0 {
-		pos--
-		buf[pos] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		pos--
-		buf[pos] = '-'
-	}
-	return string(buf[pos:])
 }

@@ -51,13 +51,19 @@ func Create(input CreateInput) UnsignedAgentReceipt {
 	}
 
 	// Compute response_hash when a response body is supplied.
+	// Panic on unmarshal/canonicalization failure: passing non-JSON as ResponseBody
+	// is a programming error — silently omitting the hash would undermine the
+	// security property the caller intended to commit to.
 	if len(input.ResponseBody) > 0 {
 		var responseAny any
-		if err := json.Unmarshal(input.ResponseBody, &responseAny); err == nil {
-			if canonical, err := Canonicalize(responseAny); err == nil {
-				subject.Outcome.ResponseHash = SHA256Hash(canonical)
-			}
+		if err := json.Unmarshal(input.ResponseBody, &responseAny); err != nil {
+			panic(fmt.Sprintf("receipt.Create: ResponseBody is not valid JSON: %v", err))
 		}
+		canonical, err := Canonicalize(responseAny)
+		if err != nil {
+			panic(fmt.Sprintf("receipt.Create: ResponseBody canonicalization failed: %v", err))
+		}
+		subject.Outcome.ResponseHash = SHA256Hash(canonical)
 	}
 
 	// Set terminal marker when requested (never set false).

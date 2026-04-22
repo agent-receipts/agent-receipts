@@ -51,7 +51,7 @@ class CreateReceiptInput(BaseModel):
     intent: Intent | None = None
     authorization: Authorization | None = None
     action_timestamp: str | None = None
-    response_body: dict[str, Any] | None = None
+    response_body: Any = None  # noqa: ANN401  # any JSON value, not just objects
     terminal: bool = False
 
 
