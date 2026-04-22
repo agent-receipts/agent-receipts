@@ -2,6 +2,8 @@
 // verifying Action Receipts — W3C Verifiable Credentials for AI agent actions.
 package receipt
 
+import "encoding/json"
+
 // Protocol constants (unexported to prevent mutation).
 var (
 	protocolContext        = []string{"https://www.w3.org/ns/credentials/v2", "https://agentreceipts.ai/context/v1"}
@@ -113,7 +115,23 @@ type Chain struct {
 	Sequence            int     `json:"sequence"`
 	PreviousReceiptHash *string `json:"previous_receipt_hash"`
 	ChainID             string  `json:"chain_id"`
-	Terminal            *bool   `json:"terminal,omitempty"`
+	// Terminal, when non-nil and true, asserts this is the final receipt in
+	// the chain. Spec §4.3.2 restricts the wire form to the constant true or
+	// absent — explicit false is schema-invalid. MarshalJSON silently drops
+	// Terminal when it is non-nil but false so external callers who set
+	// Terminal: &falseVal still produce a valid JSON document.
+	Terminal *bool `json:"terminal,omitempty"`
+}
+
+// MarshalJSON serializes Chain, silently omitting Terminal when it is set
+// to false (spec §4.3.2 forbids `terminal: false` on the wire).
+func (c Chain) MarshalJSON() ([]byte, error) {
+	type chainAlias Chain
+	a := chainAlias(c)
+	if a.Terminal != nil && !*a.Terminal {
+		a.Terminal = nil
+	}
+	return json.Marshal(a)
 }
 
 // CredentialSubject contains the core receipt payload.

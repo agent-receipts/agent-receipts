@@ -469,6 +469,28 @@ func TestTerminalTrueEmits(t *testing.T) {
 	}
 }
 
+// TestChainMarshalDropsFalseTerminal verifies the structural safeguard on
+// Chain: even when an external caller explicitly sets Terminal to &false
+// (bypassing Create()), the wire form must omit the terminal field entirely,
+// per spec §4.3.2 which forbids `terminal: false`.
+func TestChainMarshalDropsFalseTerminal(t *testing.T) {
+	f := false
+	prevHash := "sha256:abc"
+	c := Chain{
+		Sequence:            2,
+		PreviousReceiptHash: &prevHash,
+		ChainID:             "chain-escape",
+		Terminal:            &f, // the escape hatch
+	}
+	data, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containsStr(string(data), "terminal") {
+		t.Errorf("Terminal: &false must be omitted from JSON; got %s", data)
+	}
+}
+
 func containsStr(s, sub string) bool {
 	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || findStr(s, sub))
 }
