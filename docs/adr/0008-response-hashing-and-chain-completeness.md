@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Two independent gaps in the current receipt model (v0.1.0) motivate this ADR. The initial framing was that bundling them would let the protocol migrate from `0.1.0` once. Working through the chain-completeness mechanism closely (see §"Why in-chain truncation detection does not work" below) showed that the only in-chain designs either restate information already in the schema or require a substantially bigger protocol change than a single optional field. The schema-bump-once rationale therefore collapses for that piece: the right companion to response hashing is a non-schema caller-supplied verification parameter, not another field.
+Two independent gaps in the current receipt model (v0.1.0) motivate this ADR. The initial framing was that bundling them would let the protocol migrate from `0.1.0` once. Working through the chain-completeness mechanism closely (see §"Why in-chain truncation detection does not work" below) narrowed which in-chain designs are actually viable: an "expected length" or "hash of successors" commitment reduces to a transparency-log protocol and is rejected, but a terminal-marker flag is a single optional boolean with unambiguous semantics and no caller discipline required at the happy path. The schema-bump-once rationale therefore holds, for that one mechanism — alongside an out-of-band verifier parameter for the general open-ended case.
 
 **Gap 1 — Receipts hash the request but not the response (#153).** The `credentialSubject.action.parameters_hash` field (see spec §4.3.2, [agent-receipt.schema.json#L158](../../spec/schema/agent-receipt.schema.json#L158)) captures what the agent asked. The `outcome` block captures status and result metadata but not a cryptographic commitment to the server's response body. A compromised MCP server, a tampering proxy, or an incident investigator cannot distinguish a legitimate response from a modified one from the receipt alone. The receipt chain proves intent but not outcome.
 
@@ -24,7 +24,9 @@ Before enumerating options, a cryptographic floor: no purely in-chain commitment
 | "Hash of the next receipt" | Requires delaying signing until the next action is chosen; still leaves the last signed receipt unprotected |
 | Merkle accumulator of prior receipts | Detects prior-receipt deletion (already covered by hash chaining); does nothing for the tail |
 
-The only mechanisms that genuinely detect tail truncation are (a) an external witness supplied at verification time (expected length or final hash), or (b) a closure ceremony — a terminal-marker receipt, useful only for chains with a defined lifecycle and noisy for long-running agents. Anything in-chain that goes beyond these is effectively a transparency-log protocol — substantially larger than a single field.
+The only mechanisms that genuinely detect tail truncation are (a) an external witness supplied at verification time (expected length or final hash), or (b) an explicit closure marker — a terminal-marker receipt that the issuer sets on the final receipt of a chain it intends to close. Anything in-chain that goes beyond these is effectively a transparency-log protocol — substantially larger than a single field, deferred to a future ADR if a real deployment needs it.
+
+Both (a) and (b) are adopted in this ADR. They are complementary: (a) is the only option for open-ended chains where the issuer never knows it is emitting the final receipt; (b) is the cheap in-band signal for chains that do close cleanly (CLI tool runs, single agent tasks, workflow-bound proxies). Absence of a terminal marker in (b) is not an error — it simply means "no claim", identical to today's behaviour.
 
 ### Options considered
 
@@ -34,7 +36,7 @@ The only mechanisms that genuinely detect tail truncation are (a) an external wi
 
 - **Option C (rejected): In-chain length commitment schema field.** An earlier draft of this ADR proposed adding an optional `credentialSubject.chain.length_commitment` field signed into each receipt. On closer analysis, see the table above: every concrete interpretation of such a field either duplicates `sequence`, requires knowledge the issuer does not have, or reduces to a transparency-log protocol. The ADR rejects this option as security theatre. If in-chain truncation detection is pursued in the future, it needs a purpose-designed ADR covering checkpoint receipts, external anchoring, and the accompanying verifier state — not a single hand-wavy field.
 
-- **Option D: Terminal-marker receipt.** Add a `chain.terminal: true` flag to mark the final receipt in a chain. Verifiers flag any chain whose last observed receipt is not marked terminal as "possibly truncated". Self-contained and simple, but requires every chain to be explicitly closed. Agents that crash, are killed, or are long-running never close their chains, so in practice most chains would verify as "possibly truncated" and the signal would be noise. Useful for chains with a defined lifecycle (single agent runs) but not a general-purpose mechanism. Deferred to a future ADR alongside any transparency-log work.
+- **Option D: Terminal-marker receipt.** Add an optional `chain.terminal: true` flag to mark the final receipt in a chain. This is a positive claim, not a required one: its presence means the issuer asserts the chain ends here; its absence means no claim (same as today). Verifiers gain one integrity check — if receipt N has `terminal: true`, no receipt with `previous_receipt_hash` pointing at N may exist — and one new API affordance — callers can ask "is this chain explicitly closed?" and fail verification when closure is required. Chains that crash, are killed, or are long-running simply never emit a terminal and are no worse off than today. A single optional boolean, unambiguous semantics, no caller discipline required on the happy path. Pairs cleanly with the `0.2.0` schema bump motivated by §1.
 
 Related: #153, #171, spec §7.3 (chain integrity verification), spec §9.3 (open question on receipt tampering), ADR-0002 (RFC 8785 canonicalization), ADR-0003 (VC envelope format).
 
@@ -42,13 +44,14 @@ Related: #153, #171, spec §7.3 (chain integrity verification), spec §9.3 (open
 
 *Both sub-decisions below are concrete and intended for immediate implementation. The open questions listed at the end are for community input on details, not on the overall shape.*
 
-The release that closes #153 and the documentation portion of #171 ships three things together:
+The release that closes #153 and #171 ships four things together:
 
 1. §1 — response hashing (schema change, `0.2.0`).
 2. §2 — Option A: documentation + pinning tests for chain truncation (no schema change).
 3. §3 — Option B: optional verifier parameters for out-of-band truncation detection (no schema change).
+4. §4 — Option D: terminal-marker field on the final receipt (schema change, shares the `0.2.0` bump with §1).
 
-Options C (in-chain length commitment field) and D (terminal-marker receipt) are rejected at this layer and deferred to a potential future ADR on transparency-log-style checkpointing.
+Option C (in-chain length-commitment field) is rejected as security theatre — see Context §"Options considered". Transparency-log-style checkpointing remains deferred to a future ADR.
 
 ### 1. Response hashing (from #153)
 
@@ -82,12 +85,25 @@ The exact parameter names and idiomatic surface differ per SDK (`ExpectedLength`
 
 This is the concrete mitigation the original #171 follow-up gestured at, landed now.
 
+### 4. Terminal-marker receipt (Option D)
+
+Add an optional boolean field `credentialSubject.chain.terminal` to the receipt schema:
+
+- **Field name and location.** `chain.terminal`, optional boolean. Absence and explicit `false` are equivalent ("no claim, chain may or may not continue"). Explicit `true` is a positive claim from the issuer that this is the final receipt on the chain.
+- **Issuer guidance.** Issuers with a defined chain lifecycle — single-task agents, CLI tools on normal exit, workflow-bound MCP proxies — set `terminal: true` on the last receipt they emit. Open-ended agents simply never set it. The issuer is not required to predict closure at arbitrary mid-chain points.
+- **Verifier behaviour (new integrity check).** If any receipt in the chain has `terminal: true`, no subsequent receipt whose `previous_receipt_hash` points at it is permitted. Verifiers fail with a clear error ("receipt after terminal") if this is observed. This catches an attacker who attempts to extend a chain that its issuer marked closed.
+- **Verifier behaviour (new caller affordance).** Chain-verification APIs gain an optional `RequireTerminal` / `require_terminal=True` parameter. When supplied, verification fails if the last observed receipt is not explicitly `terminal: true`. When unsupplied, default remains "no claim either way" — absence of a terminal is not a verification failure.
+- **Delegation interaction.** Delegation links (spec §7.6) are distinct from chain closure. A receipt that delegates to another chain is not automatically terminal. `terminal: true` means "no more receipts on *this* chain", regardless of whether downstream delegated chains exist.
+
+Schema-wise this is one optional boolean, signed as part of the receipt body like any other field. Pairs with §1 in the same `0.2.0` bump.
+
 ### Open questions for community input
 
 - **Does response hashing need to be mandatory at some future version?** Leaving it optional forever weakens the guarantee for compliance use cases. A future minor version could require it.
 - **Redaction determinism across SDKs.** RFC 8785 is stable, but the redaction step is SDK-specific. Do all three SDKs produce byte-identical redacted responses for the same input? If not, `response_hash` verification will fail cross-SDK. This must be nailed down in the spec and covered by shared test vectors.
 - **What does `response_hash` mean for streaming responses?** MCP does not currently stream tool results, but if it does in the future, hashing the full response is not possible without buffering.
-- **Is there a near-term need for in-chain truncation detection (transparency-log / checkpoint design)?** §3 covers callers with external state. Callers without it still have no in-band detection. Before investing in a larger protocol change, we want signal on whether real deployments need it.
+- **Is there a near-term need for deeper in-chain truncation detection (transparency-log / checkpoint design)?** §3 covers callers with external state; §4 covers chains with clean closure. Chains that are open-ended *and* whose callers cannot supply external state still have no in-band detection. Before investing in a larger protocol change, we want signal on whether real deployments need it.
+- **Should agents by default mark their final receipt as terminal?** An issuer-side default of "set terminal on normal shutdown" is a small behavioural commitment that would make the signal far more useful in practice. The ADR does not mandate it; SDK defaults can evolve after adoption.
 
 ## Security Considerations
 
@@ -101,7 +117,11 @@ If response hashing happens before secret redaction, the hash commits to a value
 
 ### Truncation detection has a floor
 
-No in-band mechanism can detect truncation of receipts that did not exist when the last observed receipt was signed. A receipt only commits to values its issuer already knows; it cannot commit to its own successors. §3 (Option B) is therefore the only mechanism in this ADR that actually detects tail truncation, and it does so by pushing the commitment out of band. Callers without access to an external witness have no in-band detection — the spec must state this explicitly so operators understand what the protocol does and does not guarantee.
+No mechanism can detect truncation of receipts that never existed. A receipt only commits to values its issuer already knows; it cannot commit to its own successors. §4 (Option D) detects truncation only when the issuer had a chance to mark the chain terminal — if an attacker drops all receipts *including* a terminal one, or drops the tail of a chain that was never closed, §4 is blind. §3 (Option B) catches the open-ended case by pushing the commitment out of band. Neither mechanism helps for chains that are both open-ended and lack any external witness — the spec must state this explicitly so operators understand what the protocol does and does not guarantee.
+
+### Terminal marker is a positive claim only
+
+A verifier that sees a chain ending in a non-terminal receipt cannot conclude anything about completeness — the issuer may simply not have closed the chain yet, or ever. §4 only provides signal when `terminal: true` is observed (chain explicitly closed) or when a receipt is found after a prior terminal marker (protocol violation). The natural misread — "no terminal means truncated" — must be avoided in spec text and SDK docs.
 
 ### Schema version as a security signal
 
@@ -117,20 +137,23 @@ SHA-256 is consistent with existing hashes in the schema. No algorithm change is
 - **Receipt size growth.** Adding one hash per receipt is negligible in bytes but normalizes the idea that receipts accumulate optional fields. The ADR should not open the door to storing the response itself; this must be explicit.
 - **Migration surface area.** A `0.2.0` bump touches the spec, the JSON schema, three SDKs, the proxy verifier, examples, and any downstream tooling. A coordinated release is necessary; a staggered one will leave verifiers failing on valid receipts.
 - **Option B requires caller discipline.** §3's verifier parameters only help callers who actually maintain external chain state. A caller who ignores them is no worse off than today but gains no protection. Operator guidance in the spec should explain when these parameters are expected to be supplied (e.g., any audit-trail use case with an external record should be passing `ExpectedFinalHash`).
-- **Signature change concerns.** `response_hash` is part of the signed body. Any mismatch between what the issuer signed and what the verifier reconstructs will fail signature verification, which is correct. But it means that adding the field cannot be retrofitted to `0.1.0` receipts — the decision to hash must be made at receipt-creation time.
+- **Option D relies on issuer discipline.** §4 only gives signal when issuers actually mark their closed chains. Issuers that never emit `terminal: true` get nothing. The mitigation is SDK-side: make "set terminal on normal shutdown" easy or default for lifecycle-bound issuers.
+- **Option D is a positive signal, not a guarantee.** A missing terminal does not mean the chain is truncated. Operators must not treat absence as a failure; only the "receipt after terminal" integrity violation is a hard error.
+- **Signature change concerns.** `response_hash` and `chain.terminal` are part of the signed body. Any mismatch between what the issuer signed and what the verifier reconstructs will fail signature verification, which is correct. But it means that adding either field cannot be retrofitted to `0.1.0` receipts — the decision to hash or mark terminal must be made at receipt-creation time.
 
 ## Consequences
 
 - Receipt schema version bumps from `0.1.0` to `0.2.0`. Verifiers must accept both; issuers may emit either, with clear guidance to prefer `0.2.0`.
 - Spec §4.3 (outcome field reference) must be updated to describe `response_hash`, the ordering rule, and the verifier's handling of a missing field.
-- Spec §7.3 (chain integrity verification) must gain a subsection stating explicitly that chain verification does not detect tail truncation, and document the `ExpectedLength` / `ExpectedFinalHash` verifier parameters as the supported mitigation.
-- All three SDKs must implement response hashing on the issuer side and verification on the verifier side, plus the new optional verifier parameters, with shared test vectors in `sdk/shared-test-vectors/` (or equivalent) so cross-SDK interop is enforced in CI.
-- Each SDK gains a test that pins `Valid: true` for a tail-truncated chain when no expected length/hash is supplied, and `Valid: false` when one is supplied and does not match. These tests lock current behaviour against silent future changes.
-- `mcp-proxy verify` must validate `response_hash` when present and emit a clear diagnostic when the response body is not available for recomputation.
-- New examples in `spec/examples/` demonstrating a `0.2.0` receipt with `response_hash`. Existing `0.1.0` examples are retained to document backwards compatibility.
+- Spec §4.3 (chain field reference) must be updated to describe `chain.terminal`, its semantics (positive claim only), and the new "receipt after terminal" integrity rule.
+- Spec §7.3 (chain integrity verification) must gain a subsection stating that chain verification does not detect tail truncation by default, document the `ExpectedLength` / `ExpectedFinalHash` verifier parameters as the out-of-band mitigation, and document `terminal` + `RequireTerminal` as the in-band mitigation for chains with clean closure.
+- All three SDKs must implement (a) response hashing on the issuer side and verification on the verifier side, (b) the optional `ExpectedLength` / `ExpectedFinalHash` verifier parameters, (c) setting `chain.terminal` on the issuer side when the caller indicates chain closure, and (d) the "receipt after terminal" integrity check plus the optional `RequireTerminal` verifier parameter. Shared test vectors in `sdk/shared-test-vectors/` (or equivalent) enforce cross-SDK interop in CI.
+- Each SDK gains tests for: `Valid: true` for a tail-truncated chain when no expected length/hash/terminal requirement is supplied; `Valid: false` when `ExpectedLength`/`ExpectedFinalHash` is supplied and does not match; terminal marker round-trip; `Valid: false` for a receipt whose `previous_receipt_hash` points at a terminal predecessor; `Valid: false` when `RequireTerminal` is set but the chain does not end in a terminal receipt.
+- `mcp-proxy verify` must validate `response_hash` when present, enforce the "receipt after terminal" rule, and emit a clear diagnostic when the response body is not available for recomputation.
+- New examples in `spec/examples/` demonstrating a `0.2.0` receipt with `response_hash` and a chain that ends with `chain.terminal: true`. Existing `0.1.0` examples are retained to document backwards compatibility.
 - Migration notes in `spec/CHANGELOG.md` and a top-level upgrade section in the spec.
 - Implementation should land as a single coordinated change across spec, schema, three SDKs, proxy, examples, and changelog, to avoid a window where the schema says one thing and the code says another.
-- In-chain truncation detection (Options C and D) is explicitly deferred. If a real deployment surfaces a need for it, that work starts with a new ADR covering checkpoint semantics, verifier state, and any transparency-log coupling — not a bare schema field.
+- Option C (in-chain length commitment) is explicitly rejected. If deeper in-chain detection is pursued later, that work starts with a new ADR covering checkpoint semantics, verifier state, and any transparency-log coupling — not a bare schema field.
 
 ---
 
