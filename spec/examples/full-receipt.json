@@ -17,7 +17,7 @@
     "model": "claude-sonnet-4-6",
     "session_id": "session_xyz789"
   },
-  "validFrom": "2026-03-31T14:30:00Z",
+  "issuanceDate": "2026-03-31T14:30:00Z",
   "credentialSubject": {
     "principal": {
       "id": "did:user:otto-abc",
