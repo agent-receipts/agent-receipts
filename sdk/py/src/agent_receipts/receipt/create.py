@@ -93,9 +93,10 @@ def create_receipt(input: CreateReceiptInput) -> UnsignedAgentReceipt:
         outcome_with_hash = input.outcome
 
     # Set terminal marker (never set False).
+    # exclude_none=True strips terminal: null (desired) but also drops
+    # previous_receipt_hash: null for the first receipt in a chain.
+    # Re-add it explicitly because Chain requires the field (no default).
     chain_data = input.chain.model_dump(exclude_none=True)
-    # previous_receipt_hash is a required field with no default; restore it even
-    # when None (first receipt in a chain) so Chain(**chain_data) succeeds.
     if "previous_receipt_hash" not in chain_data:
         chain_data["previous_receipt_hash"] = None
     if input.terminal:

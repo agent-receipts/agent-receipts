@@ -280,7 +280,7 @@ All five `proof` fields are required even in the minimal form.
 | `chain.chain_id` | Yes | Opaque identifier grouping receipts into a logical chain (e.g. per session). |
 | `chain.sequence` | Yes | Monotonically increasing integer position within the chain. Starts at `1`. |
 | `chain.previous_receipt_hash` | Yes | `sha256:` prefixed hash of the previous receipt's canonical form. MUST be `null` for the first receipt in a chain (`sequence: 1`). The field MUST always be present; `null` is not the same as omitting it. |
-| `chain.terminal` | No | When present, MUST be `true`. Asserts that no further receipts will be appended to this chain. Explicit `false` is schema-invalid; absence is the only valid way to express "no claim". Verifiers that observe a receipt whose `previous_receipt_hash` points at a terminal predecessor MUST fail with a "receipt after terminal" error regardless of caller parameters. See §7.3.2. |
+| `chain.terminal` | No | When present, MUST be `true`. Asserts that no further receipts will be appended to this chain. Explicit `false` is schema-invalid; absence is the only valid way to express "no claim". Verifiers that observe any receipt following a terminal receipt in the verified input sequence MUST fail with a "receipt after terminal" error regardless of caller parameters. See §7.3.2. |
 
 #### 4.3.2.1 Intent field guidance (non-normative)
 
@@ -456,7 +456,7 @@ Three mitigations are available:
 
 #### 7.3.2 Receipt-after-terminal integrity check (automatic)
 
-If any receipt R(i) in the verified input has `chain.terminal: true`, and a receipt R(i+1) exists whose `chain.previous_receipt_hash` equals the hash of R(i), verification MUST fail immediately with a clear "receipt after terminal" error. This check is unconditional — no caller parameter can suppress it. It is the verifier's enforcement mechanism against an issuer who marks a chain closed and then extends it, or an attacker who appends a receipt to a chain its issuer marked terminal.
+If any receipt R(i) in the verified input has `chain.terminal: true`, and a subsequent receipt R(i+1) exists at position i+1 in the input, verification MUST fail immediately with a clear "receipt after terminal" error. This check is unconditional — no caller parameter can suppress it. It does not depend on R(i+1)'s `previous_receipt_hash` field; the presence of any receipt after a terminal predecessor in the verified sequence is sufficient to trigger the failure. This is the verifier's enforcement mechanism against an issuer who marks a chain closed and then extends it, or an attacker who appends a receipt to a chain its issuer marked terminal.
 
 If any step fails, the chain is broken at that point. Receipts before the break may still be individually valid; receipts after are suspect.
 
