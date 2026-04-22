@@ -21,12 +21,14 @@ No CGO or external C libraries required -- the proxy uses pure Go SQLite.
 mcp-proxy -version
 ```
 
-If your shell reports `Unknown command: mcp-proxy`, the Go bin directory isn't on your `$PATH`. `go install` places binaries in `$(go env GOPATH)/bin` (usually `~/go/bin`). Add it to your shell profile:
+If `mcp-proxy` isn't found (bash/zsh say `command not found`; fish says `Unknown command`), the Go bin directory isn't on your `$PATH`. `go install` writes binaries to `$GOBIN` when it's set, otherwise to `$(go env GOPATH)/bin` (usually `~/go/bin`). Add whichever applies to your shell profile:
 
 ```bash
 # bash / zsh
 export PATH="$(go env GOPATH)/bin:$PATH"
+```
 
+```fish
 # fish
 fish_add_path (go env GOPATH)/bin
 ```
