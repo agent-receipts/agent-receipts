@@ -158,9 +158,11 @@ def _strip_optional_nulls(obj: Any) -> Any:  # noqa: ANN401
     re-insert it after calling this function when it is absent.
     """
     if isinstance(obj, dict):
-        return {k: _strip_optional_nulls(v) for k, v in obj.items() if v is not None}
+        d = cast("dict[str, Any]", obj)
+        return {k: _strip_optional_nulls(v) for k, v in d.items() if v is not None}
     if isinstance(obj, list):
-        return [_strip_optional_nulls(item) for item in obj]
+        lst = cast("list[Any]", obj)
+        return [_strip_optional_nulls(item) for item in lst]
     return obj
 
 
