@@ -1,3 +1,5 @@
+//go:build integration
+
 package receipt
 
 // Test runner for cross-sdk-tests/canonicalization_vectors.json (ADR-0009).
@@ -7,6 +9,11 @@ package receipt
 //   - For each vector in receipt_hash_vectors: HashReceipt(receipt) must equal expectedHash
 //     (skip vectors with "COMPUTE_AT_COMMIT_TIME"; treat "SAME_AS_*" as equality invariants).
 //   - For receipt_signature_preservation_legacy_0_2_0: verify existing proofs still verify.
+//
+// Gated behind the `integration` build tag so `go test ./...` for the
+// standalone sdk/go module (without the monorepo's cross-sdk-tests/
+// sibling directory) still succeeds. CI runs with
+// `go test -tags=integration ./...` to exercise these vectors.
 
 import (
 	"crypto/sha256"
@@ -125,10 +132,17 @@ func TestReceiptHashVectors(t *testing.T) {
 		}
 
 		t.Run(v.Name, func(t *testing.T) {
-			// Deserialise into AgentReceipt so that Go's omitempty tags apply
-			// the ADR-0009 null-normalisation rule: optional fields with JSON
-			// null become the zero-value string ("") and are omitted; the
-			// required-nullable previous_receipt_hash (*string nil) is kept as null.
+			// Deserialise into AgentReceipt. Per Go's encoding/json semantics,
+			// unmarshalling JSON `null` into a non-pointer string field leaves
+			// the Go field at its zero value ("") with no error — so optional
+			// fields like outcome.error, action.trusted_timestamp and
+			// authorization.grant_ref come through as "", and omitempty then
+			// drops them from the canonical form. This is how the Go SDK
+			// realises ADR-0009 Rule 2 for vectors that send `null` for
+			// optional fields (vs Python/TS which need an explicit
+			// strip-optional-nulls pass over a map-shaped receipt).
+			// The required-nullable previous_receipt_hash is a *string so its
+			// JSON null is preserved as (*string)(nil) and re-emitted as null.
 			var receipt AgentReceipt
 			if err := json.Unmarshal(v.Receipt, &receipt); err != nil {
 				t.Fatalf("unmarshal receipt into AgentReceipt: %v", err)
