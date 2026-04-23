@@ -20,7 +20,7 @@ description: CLI flags, policy rules, redaction, and encryption options for the 
 | `-operator-name` | (none) | Operator name, e.g. `Anthropic` |
 | `-principal` | `did:user:unknown` | Principal DID for receipts |
 | `-chain` | (auto UUID) | Chain ID for receipt chaining |
-| `-http` | `127.0.0.1:0` | HTTP address for the approval endpoint (default: random free port, logged to stderr). Pin a port (e.g. `127.0.0.1:8081`) whenever the policy has a `pause` rule — the built-in defaults do — so an approver has a stable URL. See [Approval Server](/mcp-proxy/approval-ui/). |
+| `-http` | `127.0.0.1:0` | HTTP address for the approval endpoint (default: random free port, logged to stderr). Pin a port (e.g. `127.0.0.1:8081`) whenever you're running an external approver that can't parse stderr to discover the URL. See [Approval Server](/mcp-proxy/approval-ui/). |
 | `-approval-timeout` | `1m0s` | Maximum time to wait for HTTP approval before a paused call is auto-denied |
 
 ## Policy rules
@@ -122,7 +122,7 @@ The [Approval Server page](/mcp-proxy/approval-ui/) has the full treatment — e
 - The URL and token are printed on stderr at startup, plus a machine-readable JSON line (`{"event":"approval_endpoint",...}`).
 - No `/pending` or index route — hitting `GET /` returns 404.
 - The HTTP server only starts when the policy has at least one `pause` rule. With the built-in defaults, that's always true.
-- Default `-http` is a random port; pin one (`127.0.0.1:8081`) so an approver has a stable URL. This is effectively required with the default policy.
+- Default `-http` is a random port; pin one (`127.0.0.1:8081`) if you're running an external approver that can't parse the stderr discovery event.
 - On deny or timeout the client receives a JSON-RPC error with `code: -32002` and a `data` object including `status`, `rule_name`, `risk_score`, `approval_id`, and `approval_url`.
 
 ## Data redaction
@@ -151,11 +151,11 @@ Key derivation uses Argon2id (t=1, m=64MB, p=4). Encrypted fields are stored wit
 
 ## Troubleshooting
 
-### `-32002: approval timeout or rejected` on writes (reads still work)
+### `-32002: approval timeout or rejected` on specific tools
 
-**Symptom:** `create_pull_request`, `merge_pull_request`, and similar high-risk writes fail with JSON-RPC error `-32002`. Low-risk calls in the same server — `push_files`, `create_branch`, reads — succeed. This makes the failure look tool-specific, but it's not.
+**Symptom:** a particular subset of tools fails with JSON-RPC error `-32002`, while the rest of the same server works. Common triggers are tools whose names contain `auth`/`token`/`secret`/`key`/`credential`/`password`, tools named `*config*` or `*setting*` combined with writes, or SQL execution tools called with mutation strings that omit `WHERE`. Ordinary GitHub writes like `create_pull_request` and `push_files` are unaffected.
 
-**Cause:** the default policy contains `pause_high_risk` (`min_risk_score: 50`). Calls at or above 50 are paused waiting for approval. If nothing is POSTing `/api/tool-calls/{id}/approve`, every paused call sits until `-approval-timeout` elapses (default 60 s) and is then auto-denied with `-32002`. Everything below the threshold flows through normally.
+**Cause:** the default policy contains `pause_high_risk` (`min_risk_score: 50`). The scorer adds +30 for sensitive keywords, +30 for SQL mutations without `WHERE`, +20 for `config`/`setting`, and a 20–40 base by operation type — so those tools cross the 50 threshold and get paused. If nothing is POSTing `/api/tool-calls/{id}/approve`, every paused call sits until `-approval-timeout` elapses (default 60 s) and is then auto-denied with `-32002`. Everything below the threshold flows through normally, which is why the failure looks tool-specific.
 
 **Diagnose:**
 

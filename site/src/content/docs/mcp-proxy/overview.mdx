@@ -7,10 +7,10 @@ The MCP Proxy is a transparent stdin/stdout proxy that sits between an MCP clien
 
 **Repository:** [`mcp-proxy/`](https://github.com/agent-receipts/ar/tree/main/mcp-proxy)
 
-:::caution[Approval server is required with the default policy]
-The built-in policy contains a `pause` rule (`pause_high_risk`, `min_risk_score: 50`). Any tool call scoring at or above 50 — most writes, like `create_pull_request` or `merge_pull_request` — is held until an approver POSTs a decision to the proxy's HTTP endpoint. Without an approver, those calls fail with `-32002: approval timeout or rejected` after the approval timeout elapses, while lower-scoring calls (reads, `push_files`, `create_branch`) still succeed — so the failure looks tool-specific.
+:::caution[Approval server is required when the policy pauses calls]
+The built-in policy contains a `pause` rule (`pause_high_risk`, `min_risk_score: 50`). Tool calls that score at or above 50 — things like `update_auth_config`, `create_api_key`, `delete_credential`, and SQL mutations without a `WHERE` clause — are held until an approver POSTs a decision to the proxy's HTTP endpoint. Without an approver, any such call fails with `-32002: approval timeout or rejected` after the approval timeout, while lower-scoring calls (ordinary reads and writes like `create_pull_request`, `push_files`, `create_branch`) still pass — so a failure can look tool-specific.
 
-**You must either:**
+Most GitHub MCP tools don't reach 50 under the default scorer, so many deployments never trigger a pause in practice. But any time the policy *can* pause a call, you should plan for it. Either:
 
 1. Pin `-http 127.0.0.1:8081` (or any free port) in your MCP client config and run an approver against it — see [Approval Server](/mcp-proxy/approval-ui/); **or**
 2. Load a custom `-rules` YAML that contains no `pause` or `block` rules (removing human-in-the-loop enforcement).
@@ -100,6 +100,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 ```
 
 > **Note:** `claude_desktop_config.json` is not encrypted. Avoid committing it to version control, and prefer sourcing tokens from your OS keychain or a secret manager where possible.
+
+`-http 127.0.0.1:8080` pins the approval endpoint to a fixed port. If you run Claude Code and Codex alongside Claude Desktop, assign each one a distinct port (e.g. `8080` / `8081` / `8082`) so an approver can route to the right instance.
 
 ## Claude Code integration
 
