@@ -57,3 +57,14 @@ brews:
       bin.install "mcp-proxy"
     test: |
       system "#{bin}/mcp-proxy", "--version"
+    # `brew outdated` and `brew livecheck` use this to detect new releases.
+    # The `ar` repo ships multiple taggable components, so we can't use
+    # `:github_latest` (which returns repo-wide latest). `:github_releases`
+    # scans all releases; regex extracts version from the `mcp-proxy/vX.Y.Z`
+    # tag prefix.
+    custom_block: |
+      livecheck do
+        url "https://github.com/agent-receipts/ar"
+        strategy :github_releases
+        regex(/^mcp-proxy\/v?(\d+(?:\.\d+)+)$/i)
+      end
