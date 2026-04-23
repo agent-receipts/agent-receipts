@@ -11,6 +11,11 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Deployment environment lets you attach protection rules (required
+    # reviewers, wait timer, branch restrictions) to gate who can trigger
+    # a release and push to the Homebrew tap. Configure at:
+    # https://github.com/agent-receipts/ar/settings/environments
+    environment: release-mcp-proxy
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
