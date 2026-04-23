@@ -79,7 +79,6 @@ describe("receipt types", () => {
 					target: { system: "mail.google.com", resource: "email:compose" },
 					parameters_hash: "sha256:abc123",
 					timestamp: "2026-03-29T14:30:00Z",
-					trusted_timestamp: null,
 				},
 				intent: {
 					conversation_hash: "sha256:def456",
@@ -89,7 +88,6 @@ describe("receipt types", () => {
 				},
 				outcome: {
 					status: "success",
-					error: null,
 					reversible: true,
 					reversal_method: "gmail:undo_send",
 					reversal_window_seconds: 30,
@@ -102,7 +100,6 @@ describe("receipt types", () => {
 					scopes: ["email:send", "drive:read"],
 					granted_at: "2026-03-29T14:00:00Z",
 					expires_at: "2026-03-29T15:00:00Z",
-					grant_ref: null,
 				},
 				chain: {
 					sequence: 1,
