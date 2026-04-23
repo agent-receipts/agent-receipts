@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,12 +39,16 @@ func TestBuildApprovalDeniedMessageExplicitDeny(t *testing.T) {
 	}
 }
 
+func withHomeDirResolver(t *testing.T, resolver func() (string, error)) {
+	t.Helper()
+	prev := userHomeDir
+	userHomeDir = resolver
+	t.Cleanup(func() { userHomeDir = prev })
+}
+
 func TestDefaultDBPathUsesHomeDir(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	if runtime.GOOS == "windows" {
-		t.Setenv("USERPROFILE", home)
-	}
+	withHomeDirResolver(t, func() (string, error) { return home, nil })
 
 	got := defaultDBPath("audit.db")
 	want := filepath.Join(home, ".agent-receipts", "audit.db")
@@ -52,32 +57,26 @@ func TestDefaultDBPathUsesHomeDir(t *testing.T) {
 	}
 }
 
-func TestDefaultDBPathFallsBackWhenHomeUnavailable(t *testing.T) {
-	// On Unix, os.UserHomeDir() can succeed via /etc/passwd lookup even when
-	// HOME is empty, but defaultDBPath also rejects empty/non-absolute home
-	// strings, so this test stays deterministic across platforms.
-	if runtime.GOOS == "windows" {
-		t.Setenv("USERPROFILE", "")
-		t.Setenv("HOMEDRIVE", "")
-		t.Setenv("HOMEPATH", "")
-	} else {
-		t.Setenv("HOME", "")
-	}
+func TestDefaultDBPathFallsBackOnResolverError(t *testing.T) {
+	withHomeDirResolver(t, func() (string, error) { return "", errors.New("no home") })
 
-	got := defaultDBPath("audit.db")
-	if got != "audit.db" {
+	if got := defaultDBPath("audit.db"); got != "audit.db" {
 		t.Fatalf("expected fallback to bare filename, got %q", got)
 	}
 }
 
-func TestDefaultDBPathRejectsRelativeHome(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("UserHomeDir on Windows reads multiple env vars; relative-home injection is not portable")
-	}
-	t.Setenv("HOME", "relative/path")
+func TestDefaultDBPathFallsBackOnEmptyHome(t *testing.T) {
+	withHomeDirResolver(t, func() (string, error) { return "", nil })
 
-	got := defaultDBPath("audit.db")
-	if got != "audit.db" {
+	if got := defaultDBPath("audit.db"); got != "audit.db" {
+		t.Fatalf("expected fallback for empty home, got %q", got)
+	}
+}
+
+func TestDefaultDBPathRejectsRelativeHome(t *testing.T) {
+	withHomeDirResolver(t, func() (string, error) { return "relative/path", nil })
+
+	if got := defaultDBPath("audit.db"); got != "audit.db" {
 		t.Fatalf("expected fallback for non-absolute home, got %q", got)
 	}
 }

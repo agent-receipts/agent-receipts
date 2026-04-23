@@ -615,6 +615,11 @@ func buildApprovalDeniedMessage(toolName, ruleName string, riskScore int, approv
 	}
 }
 
+// userHomeDir is overridable in tests so the fallback path in defaultDBPath
+// can be exercised deterministically (clearing $HOME isn't enough on Unix —
+// os.UserHomeDir can still resolve via /etc/passwd).
+var userHomeDir = os.UserHomeDir
+
 // defaultDBPath returns an absolute path under the user's home directory
 // (`~/.agent-receipts/<name>`) for the given filename. MCP clients (Claude
 // Desktop, Claude Code, Codex) spawn the proxy with an unwritable cwd, so a
@@ -622,7 +627,7 @@ func buildApprovalDeniedMessage(toolName, ruleName string, riskScore int, approv
 // only if the home directory cannot be resolved to an absolute path — callers
 // are expected to surface a clear error when that fallback is hit.
 func defaultDBPath(name string) string {
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil || home == "" || !filepath.IsAbs(home) {
 		return name
 	}
@@ -636,7 +641,10 @@ func ensureDBDir(path string) error {
 	if dir == "" || dir == "." {
 		return nil
 	}
-	return os.MkdirAll(dir, 0o700)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create database directory %q: %w", dir, err)
+	}
+	return nil
 }
 
 func generateToken(n int) string {
