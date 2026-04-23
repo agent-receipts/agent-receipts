@@ -102,6 +102,7 @@ export default defineConfig({
             { label: "Configuration", slug: "reference/configuration" },
           ],
         },
+        { label: "Ecosystem", slug: "ecosystem" },
       ],
     }),
   ],
