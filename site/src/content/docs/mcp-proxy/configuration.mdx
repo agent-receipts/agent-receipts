@@ -151,7 +151,7 @@ Key derivation uses Argon2id (t=1, m=64MB, p=4). Encrypted fields are stored wit
 
 ## Troubleshooting
 
-### `-32002: approval timeout or rejected`
+### `-32002` errors on tool calls
 
 **Two different things produce this error code.** Distinguish them before reaching for a fix, because they need different remedies and only one of them involves the proxy:
 
@@ -186,7 +186,7 @@ sqlite3 ~/.agent-receipts/audit.db \
   "SELECT policy_action, COUNT(*) FROM tool_calls GROUP BY policy_action;"
 ```
 
-The remedy is to run an approver, or to relax the policy. See [Approval Server](/mcp-proxy/approval-ui/) for both paths. Common tools that *do* cross the default threshold of 50: names containing `auth`/`token`/`secret`/`key`/`credential`/`password`, `*config*`/`*setting*` tools combined with writes, SQL mutations without `WHERE`. Ordinary GitHub writes like `create_pull_request` (risk 20) and `merge_pull_request` (risk 10) don't pause under the default scorer — if those are failing, you're in path #1, not #2.
+The remedy is to run an approver, or to relax the policy. See [Approval Server](/mcp-proxy/approval-ui/) for both paths. The scorer stacks a base (read 0, write 20, execute 30, delete 40, unknown 10) with modifiers — sensitive keywords in the tool name (+30), SQL mutations without `WHERE` (+30), `config`/`setting` substrings (+20), `send_*`/`post_*` prefixes (+15) — so what actually crosses 50 is combinations: `create_token` (write 20 + sensitive 30 = 50), `update_auth_config` (70), `delete_credential` (70), `delete_config` (60), `exec_sql` with a `DELETE` and no `WHERE` (60). Ordinary writes like `create_pull_request` (20), unknown-prefix calls like `merge_pull_request` (10), plain deletes like `delete_branch` (40), `update_config` with no sensitive keyword (40), and sensitive-keyword *reads* like `get_token` (30) all stay below the threshold — if one of those is failing, you're in path #1, not #2.
 
 ### 404 at `http://127.0.0.1:8081/`
 
