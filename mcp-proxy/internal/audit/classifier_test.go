@@ -17,6 +17,12 @@ func TestClassifyOperation(t *testing.T) {
 		{"run_query", "execute"},
 		{"exec_command", "execute"},
 		{"some_random_tool", "unknown"},
+		// Resource-first naming (github-mcp-server style).
+		{"pull_request_read", "read"},
+		{"pull_request_create", "write"},
+		{"repository_delete", "delete"},
+		// Ambiguous: contains _read but does not end with it → unknown.
+		{"repository_read_only_mode", "unknown"},
 	}
 	for _, tt := range tests {
 		got := ClassifyOperation(tt.tool)

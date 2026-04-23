@@ -38,6 +38,36 @@ func ClassifyOperation(toolName string) string {
 		}
 	}
 
+	// Suffix checks for resource-first naming (e.g. github-mcp-server's pull_request_read).
+	// Same priority order as prefix checks: delete > execute > write > read.
+	deleteSuffixes := []string{"_delete", "_remove"}
+	for _, s := range deleteSuffixes {
+		if strings.HasSuffix(lower, s) {
+			return "delete"
+		}
+	}
+
+	execSuffixes := []string{"_run", "_exec"}
+	for _, s := range execSuffixes {
+		if strings.HasSuffix(lower, s) {
+			return "execute"
+		}
+	}
+
+	writeSuffixes := []string{"_create", "_update", "_write"}
+	for _, s := range writeSuffixes {
+		if strings.HasSuffix(lower, s) {
+			return "write"
+		}
+	}
+
+	readSuffixes := []string{"_read"}
+	for _, s := range readSuffixes {
+		if strings.HasSuffix(lower, s) {
+			return "read"
+		}
+	}
+
 	return "unknown"
 }
 
