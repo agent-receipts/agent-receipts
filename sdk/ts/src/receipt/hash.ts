@@ -3,8 +3,10 @@ import type { AgentReceipt } from "./types.js";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
 	if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
-	const ctor = (v as { constructor?: unknown }).constructor;
-	return ctor === Object || ctor === undefined || ctor === null;
+	// Prototype-based check so an object with a user-controlled "constructor"
+	// key (valid JSON) isn't misclassified as non-plain.
+	const proto = Object.getPrototypeOf(v);
+	return proto === Object.prototype || proto === null;
 }
 
 /**

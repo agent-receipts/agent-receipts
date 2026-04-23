@@ -38,6 +38,19 @@ interface V020VectorFile {
 	terminalChain: { receipts: AgentReceipt[] };
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+	return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+function isV020VectorFile(v: unknown): v is V020VectorFile {
+	if (!isRecord(v)) return false;
+	const keys = v.keys;
+	if (!isRecord(keys) || typeof keys.publicKey !== "string") return false;
+	const chain = v.terminalChain;
+	if (!isRecord(chain)) return false;
+	return Array.isArray(chain.receipts);
+}
+
 function loadReferencedFile(relPath: string): unknown {
 	const path = join(import.meta.dirname, "../../../..", relPath);
 	return JSON.parse(readFileSync(path, "utf-8"));
@@ -52,13 +65,18 @@ function resolveReceiptsFrom(ref: string): {
 	if (!filePath || !pointer) {
 		throw new Error(`receiptsFrom missing file or pointer: ${ref}`);
 	}
-	const root = loadReferencedFile(filePath) as V020VectorFile;
+	const root = loadReferencedFile(filePath);
+	if (!isV020VectorFile(root)) {
+		throw new Error(
+			`receiptsFrom file ${filePath} does not match V020VectorFile shape`,
+		);
+	}
 	let cursor: unknown = root;
 	for (const segment of pointer.split("/").slice(1)) {
-		if (cursor === null || typeof cursor !== "object") {
+		if (!isRecord(cursor)) {
 			throw new Error(`receiptsFrom invalid pointer ${ref} at '${segment}'`);
 		}
-		cursor = (cursor as Record<string, unknown>)[segment];
+		cursor = cursor[segment];
 	}
 	if (!Array.isArray(cursor)) {
 		throw new Error(`receiptsFrom did not resolve to an array: ${ref}`);
