@@ -35,15 +35,20 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 Claude Desktop doesn't shell-expand config values, so paste absolute paths. On macOS/Linux, print yours:
 
 ```bash
-echo "command: $(which mcp-proxy)"
-echo "key:     $HOME/.agent-receipts/github-proxy.pem"
-echo "db:      $HOME/.agent-receipts/receipts.db"
-echo "server:  $(which github-mcp-server)"
+echo "command:    $(which mcp-proxy)"
+echo "key:        $HOME/.agent-receipts/github-proxy.pem"
+echo "audit-db:   $HOME/.agent-receipts/audit.db"
+echo "receipt-db: $HOME/.agent-receipts/receipts.db"
+echo "server:     $(which github-mcp-server)"
 ```
 
 On Windows (PowerShell), use `(Get-Command mcp-proxy).Source`, `$env:USERPROFILE`, and `(Get-Command github-mcp-server).Source` to obtain the equivalent values.
 
-Then substitute the four values into the template:
+If the file doesn't exist yet, create it.
+
+If it already contains app preferences (for example, `{"preferences": {...}}`), that's normal. Add `mcpServers` as another top-level key rather than replacing the file — the result should look like `{"preferences": {...}, "mcpServers": {...}}` (mind the comma between sibling keys).
+
+Substitute the printed absolute paths and binary values into the `mcpServers` block below, and replace `YOUR_TOKEN` in `env` with your actual GitHub personal access token:
 
 ```json
 {
@@ -53,6 +58,7 @@ Then substitute the four values into the template:
       "args": [
         "-name", "github",
         "-key", "/Users/YOU/.agent-receipts/github-proxy.pem",
+        "-db", "/Users/YOU/.agent-receipts/audit.db",
         "-receipt-db", "/Users/YOU/.agent-receipts/receipts.db",
         "/opt/homebrew/bin/github-mcp-server", "stdio"
       ],
