@@ -1,9 +1,15 @@
 package audit
 
 import (
-	"encoding/json"
+	"regexp"
 	"strings"
 )
+
+// whereClauseRe matches the SQL keyword "where" with token boundaries, so
+// words like "somewhere" or "whereabouts" do not falsely suppress the
+// mutation signal. Case-insensitive; boundaries are start/end of string or
+// any non-letter character.
+var whereClauseRe = regexp.MustCompile(`(?i)(^|[^a-z])where([^a-z]|$)`)
 
 // ClassifyOperation determines the operation type from a tool name.
 func ClassifyOperation(toolName string) string {
@@ -68,6 +74,65 @@ func ClassifyOperation(toolName string) string {
 	return "unknown"
 }
 
+// sqlValContainsMutation walks args recursively and returns true when a value
+// stored under a SQL-context key (sql, query, statement, command) contains one
+// of the mutation keywords but does NOT contain "where". This scoping prevents
+// natural-English prose in unrelated argument fields from tripping the check.
+func sqlValContainsMutation(args map[string]any, sqlContextKeys, mutations []string) bool {
+	for k, v := range args {
+		kLower := strings.ToLower(k)
+		switch val := v.(type) {
+		case string:
+			for _, ctxKey := range sqlContextKeys {
+				if kLower == ctxKey {
+					s := strings.ToLower(val)
+					// Token-boundary check: "somewhere" / "whereabouts"
+					// must not count as a WHERE clause.
+					if whereClauseRe.MatchString(s) {
+						break
+					}
+					for _, m := range mutations {
+						if strings.Contains(s, m) {
+							return true
+						}
+					}
+					break
+				}
+			}
+		case map[string]any:
+			// Recurse into nested argument objects.
+			if sqlValContainsMutation(val, sqlContextKeys, mutations) {
+				return true
+			}
+		case []any:
+			// Recurse into arrays: SQL-context keys may live inside list
+			// elements (e.g. batch: [{"query": "..."}, ...]).
+			if sqlSliceContainsMutation(val, sqlContextKeys, mutations) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// sqlSliceContainsMutation walks a []any and recurses into each element,
+// delegating maps to sqlValContainsMutation and slices back to itself.
+func sqlSliceContainsMutation(arr []any, sqlContextKeys, mutations []string) bool {
+	for _, item := range arr {
+		switch v := item.(type) {
+		case map[string]any:
+			if sqlValContainsMutation(v, sqlContextKeys, mutations) {
+				return true
+			}
+		case []any:
+			if sqlSliceContainsMutation(v, sqlContextKeys, mutations) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ScoreRisk computes a risk score (0-100) for a tool call.
 func ScoreRisk(toolName string, arguments map[string]any) (int, []string) {
 	score := 0
@@ -104,17 +169,17 @@ func ScoreRisk(toolName string, arguments map[string]any) (int, []string) {
 		}
 	}
 
-	// Check for SQL mutation without WHERE.
+	// Check for SQL mutation without WHERE clause.
+	// We only inspect values that live under SQL-context keys (sql, query,
+	// statement, command) to avoid false-positives when natural-English prose
+	// in unrelated fields (e.g. a PR title containing "update") matches the
+	// mutation keywords.
 	if arguments != nil {
-		argJSON, _ := json.Marshal(arguments)
-		argStr := strings.ToLower(string(argJSON))
+		sqlContextKeys := []string{"sql", "query", "statement", "command"}
 		sqlMutations := []string{"drop ", "delete ", "update ", "truncate ", "alter "}
-		for _, m := range sqlMutations {
-			if strings.Contains(argStr, m) && !strings.Contains(argStr, "where") {
-				score += 30
-				reasons = append(reasons, "SQL mutation without WHERE clause")
-				break
-			}
+		if sqlValContainsMutation(arguments, sqlContextKeys, sqlMutations) {
+			score += 30
+			reasons = append(reasons, "SQL mutation without WHERE clause")
 		}
 	}
 
