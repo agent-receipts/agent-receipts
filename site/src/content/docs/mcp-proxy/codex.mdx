@@ -39,7 +39,6 @@ codex mcp add github-audited \
   -- "$(which mcp-proxy)" \
     -name github \
     -key "$HOME/.agent-receipts/github-proxy.pem" \
-    -receipt-db "$HOME/.agent-receipts/receipts.db" \
     -issuer-name Codex \
     -operator-id did:web:openai.com \
     -operator-name OpenAI \
@@ -57,7 +56,6 @@ Alternatively, edit `~/.codex/config.toml` directly. TOML doesn't shell-expand, 
 ```bash
 echo "command: $(which mcp-proxy)"
 echo "key:     $HOME/.agent-receipts/github-proxy.pem"
-echo "db:      $HOME/.agent-receipts/receipts.db"
 echo "server:  $(which github-mcp-server)"
 ```
 
@@ -69,7 +67,6 @@ command = "/Users/YOU/go/bin/mcp-proxy"
 args = [
   "-name", "github",
   "-key", "/Users/YOU/.agent-receipts/github-proxy.pem",
-  "-receipt-db", "/Users/YOU/.agent-receipts/receipts.db",
   "-issuer-name", "Codex",
   "-operator-id", "did:web:openai.com",
   "-operator-name", "OpenAI",
@@ -96,13 +93,12 @@ Or check active servers inside the Codex TUI with `/mcp`.
 After making tool calls through Codex, inspect the receipt store from your terminal:
 
 ```bash
-# List all receipts
-mcp-proxy list -receipt-db ~/.agent-receipts/receipts.db
+# List all receipts (uses the default ~/.agent-receipts/receipts.db)
+mcp-proxy list
 
 # Verify chain integrity
 mcp-proxy verify \
   -key ~/.agent-receipts/github-proxy-pub.pem \
-  -receipt-db ~/.agent-receipts/receipts.db \
   <chain-id>
 ```
 

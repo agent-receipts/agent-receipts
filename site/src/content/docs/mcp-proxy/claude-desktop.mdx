@@ -37,13 +37,12 @@ Claude Desktop doesn't shell-expand config values, so paste absolute paths. On m
 ```bash
 echo "command: $(which mcp-proxy)"
 echo "key:     $HOME/.agent-receipts/github-proxy.pem"
-echo "db:      $HOME/.agent-receipts/receipts.db"
 echo "server:  $(which github-mcp-server)"
 ```
 
 On Windows (PowerShell), use `(Get-Command mcp-proxy).Source`, `$env:USERPROFILE`, and `(Get-Command github-mcp-server).Source` to obtain the equivalent values.
 
-Then substitute the four values into the template:
+Then substitute the three values into the template:
 
 ```json
 {
@@ -53,7 +52,6 @@ Then substitute the four values into the template:
       "args": [
         "-name", "github",
         "-key", "/Users/YOU/.agent-receipts/github-proxy.pem",
-        "-receipt-db", "/Users/YOU/.agent-receipts/receipts.db",
         "/opt/homebrew/bin/github-mcp-server", "stdio"
       ],
       "env": {
@@ -73,13 +71,12 @@ Restart Claude Desktop. The GitHub MCP server now runs behind the proxy — ever
 After making tool calls, inspect the receipt store from your terminal:
 
 ```bash
-# List all receipts
-mcp-proxy list -receipt-db ~/.agent-receipts/receipts.db
+# List all receipts (uses the default ~/.agent-receipts/receipts.db)
+mcp-proxy list
 
 # Verify chain integrity
 mcp-proxy verify \
   -key ~/.agent-receipts/github-proxy-pub.pem \
-  -receipt-db ~/.agent-receipts/receipts.db \
   <chain-id>
 ```
 

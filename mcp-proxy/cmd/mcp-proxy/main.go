@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -75,8 +76,8 @@ func main() {
 
 func serve() {
 	var (
-		dbPath       = flag.String("db", "audit.db", "SQLite audit database path")
-		receiptDB    = flag.String("receipt-db", "receipts.db", "SQLite receipt store path")
+		dbPath       = flag.String("db", defaultDBPath("audit.db"), "SQLite audit database path")
+		receiptDB    = flag.String("receipt-db", defaultDBPath("receipts.db"), "SQLite receipt store path")
 		keyPath      = flag.String("key", "", "Ed25519 private key (PEM file)")
 		taxonomyPath = flag.String("taxonomy", "", "Taxonomy mappings (JSON file)")
 		rulesPath    = flag.String("rules", "", "Policy rules (YAML file)")
@@ -121,6 +122,9 @@ func serve() {
 	}
 
 	// Open audit store.
+	if err := ensureDBDir(*dbPath); err != nil {
+		log.Fatalf("mcp-proxy: create audit db directory: %v", err)
+	}
 	auditDB, err := audit.Open(*dbPath)
 	if err != nil {
 		log.Fatalf("mcp-proxy: open audit db: %v", err)
@@ -134,6 +138,9 @@ func serve() {
 	defer auditDB.EndSession(sessionID)
 
 	// Open receipt store.
+	if err := ensureDBDir(*receiptDB); err != nil {
+		log.Fatalf("mcp-proxy: create receipt db directory: %v", err)
+	}
 	rStore, err := receiptStore.Open(*receiptDB)
 	if err != nil {
 		log.Fatalf("mcp-proxy: open receipt store: %v", err)
@@ -606,6 +613,28 @@ func buildApprovalDeniedMessage(toolName, ruleName string, riskScore int, approv
 	default:
 		return fmt.Sprintf("tool call denied by approval workflow: tool=%s rule=%s risk=%d approval_id=%s", toolName, ruleName, riskScore, approvalID)
 	}
+}
+
+// defaultDBPath returns an absolute path under $HOME/.agent-receipts/ for the
+// given filename. MCP clients (Claude Desktop, Claude Code, Codex) spawn the
+// proxy with an unwritable cwd, so a relative default would crash on first
+// open. Falls back to the bare filename if the home directory is unavailable.
+func defaultDBPath(name string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return name
+	}
+	return filepath.Join(home, ".agent-receipts", name)
+}
+
+// ensureDBDir creates the parent directory of path with 0o700 permissions.
+// SQLite can create the database file itself but not the directory holding it.
+func ensureDBDir(path string) error {
+	dir := filepath.Dir(path)
+	if dir == "" || dir == "." {
+		return nil
+	}
+	return os.MkdirAll(dir, 0o700)
 }
 
 func generateToken(n int) string {
