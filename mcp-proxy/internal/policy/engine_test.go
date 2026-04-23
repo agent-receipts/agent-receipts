@@ -122,14 +122,23 @@ func TestDisabledRulesSkipped(t *testing.T) {
 }
 
 func TestDescribe(t *testing.T) {
-	engine := NewEngine(DefaultRules())
+	rules := DefaultRules()
+	engine := NewEngine(rules)
 	s := engine.Describe()
 
-	if s.TotalRules != 6 {
-		t.Errorf("expected 6 total rules, got %d", s.TotalRules)
+	wantTotal := len(rules)
+	wantEnabled := 0
+	for _, r := range rules {
+		if r.Enabled {
+			wantEnabled++
+		}
 	}
-	if s.EnabledRules != 6 {
-		t.Errorf("expected 6 enabled rules, got %d", s.EnabledRules)
+
+	if s.TotalRules != wantTotal {
+		t.Errorf("expected %d total rules, got %d", wantTotal, s.TotalRules)
+	}
+	if s.EnabledRules != wantEnabled {
+		t.Errorf("expected %d enabled rules, got %d", wantEnabled, s.EnabledRules)
 	}
 
 	wantPause := "pause_high_risk"

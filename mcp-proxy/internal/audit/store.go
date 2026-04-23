@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -317,8 +318,13 @@ type ToolPolicyBreakdown struct {
 }
 
 // TimingStats holds aggregate timing data for tool calls.
+//
+// Total counts every tool_calls row, including blocked/rejected calls that
+// never reached upstream and therefore have no duration. TimedTotal is the
+// subset used for duration-based averages and percentiles.
 type TimingStats struct {
 	Total         int                    `json:"total"`
+	TimedTotal    int                    `json:"timed_total"`
 	ByTool        []ToolTiming           `json:"by_tool"`
 	Percentiles   map[string]Percentiles `json:"percentiles"`
 	PolicyActions []ToolPolicyBreakdown  `json:"policy_actions"`
@@ -329,17 +335,23 @@ type TimingStats struct {
 func (s *Store) TimingStats(sessionID string, limit int) (TimingStats, error) {
 	var st TimingStats
 
-	// Total count.
-	countQuery := "SELECT COUNT(*) FROM tool_calls WHERE duration_ms IS NOT NULL"
+	// Two counts: Total is every row (including blocked/rejected), TimedTotal
+	// is the subset that has a duration and drives percentiles/averages.
+	totalQuery := "SELECT COUNT(*) FROM tool_calls"
+	timedQuery := "SELECT COUNT(*) FROM tool_calls WHERE duration_ms IS NOT NULL"
 	args := []any{}
 	if sessionID != "" {
-		countQuery += " AND session_id = ?"
+		totalQuery += " WHERE session_id = ?"
+		timedQuery += " AND session_id = ?"
 		args = append(args, sessionID)
 	}
-	if err := s.db.QueryRow(countQuery, args...).Scan(&st.Total); err != nil {
+	if err := s.db.QueryRow(totalQuery, args...).Scan(&st.Total); err != nil {
 		return TimingStats{}, err
 	}
-	if st.Total == 0 {
+	if err := s.db.QueryRow(timedQuery, args...).Scan(&st.TimedTotal); err != nil {
+		return TimingStats{}, err
+	}
+	if st.TimedTotal == 0 {
 		st.ByTool = []ToolTiming{}
 		st.Percentiles = map[string]Percentiles{}
 		// Still compute the policy breakdown — rejected/blocked rows have no
@@ -478,11 +490,9 @@ func (s *Store) policyActionBreakdown(sessionID string, limit int) ([]ToolPolicy
 		result = append(result, *byTool[name])
 	}
 	// Sort by total descending so hot tools appear first.
-	for i := 1; i < len(result); i++ {
-		for j := i; j > 0 && result[j].Total > result[j-1].Total; j-- {
-			result[j], result[j-1] = result[j-1], result[j]
-		}
-	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Total > result[j].Total
+	})
 	if limit > 0 && len(result) > limit {
 		result = result[:limit]
 	}

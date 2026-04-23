@@ -306,7 +306,11 @@ func cmdTiming(args []string) {
 		return
 	}
 
-	fmt.Printf("Tool call timing (%d calls)\n", st.Total)
+	if st.Total == st.TimedTotal {
+		fmt.Printf("Tool call timing (%d calls)\n", st.Total)
+	} else {
+		fmt.Printf("Tool call timing (%d calls, %d with duration)\n", st.Total, st.TimedTotal)
+	}
 
 	if len(st.ByTool) > 0 {
 		fmt.Println("\nPer-tool averages:")
@@ -368,7 +372,9 @@ type DoctorReport struct {
 }
 
 // DiagnoseConfig builds a DoctorReport from a rules path and approver URL.
-// Pure function — no I/O beyond reading the rules file and probing the URL.
+// Side effects are bounded: it may read the rules file from disk, and calls
+// the injected probe (which may perform network I/O). The probe function is
+// pluggable so tests can stub it out.
 // Returns the report and an overall exit-code bool (true = healthy).
 func DiagnoseConfig(rulesPath, approverURL string, probe func(url string) (string, error)) (DoctorReport, bool) {
 	report := DoctorReport{
@@ -420,18 +426,38 @@ func DiagnoseConfig(rulesPath, approverURL string, probe func(url string) (strin
 	return report, report.Healthy
 }
 
-// probeApprover makes a lightweight HEAD/GET against the approver URL to
-// check it's alive. It accepts any HTTP response — including 401/404 —
-// because the goal is reachability, not endpoint correctness. Only
-// connection-level failures (DNS, refused, TLS) are treated as unreachable.
+// probeApprover makes a lightweight HEAD against the approver URL to check
+// it's alive, falling back to GET if the server rejects HEAD. Any HTTP
+// response — including 401/404 — counts as reachable; the goal is liveness,
+// not endpoint correctness. Only connection-level failures (DNS, refused,
+// TLS) are treated as unreachable. Side effects on target servers are
+// minimised by trying HEAD first.
 func probeApprover(url string) (string, error) {
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(url + "/")
+	target := url + "/"
+
+	req, err := http.NewRequest(http.MethodHead, target, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("build HEAD request: %w", err)
 	}
-	defer resp.Body.Close()
-	return fmt.Sprintf("HTTP %d", resp.StatusCode), nil
+	resp, headErr := client.Do(req)
+	if headErr == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusMethodNotAllowed && resp.StatusCode != http.StatusNotImplemented {
+			return fmt.Sprintf("HTTP %d", resp.StatusCode), nil
+		}
+	}
+
+	// HEAD failed or server didn't support it — fall back to GET.
+	getResp, getErr := client.Get(target)
+	if getErr != nil {
+		if headErr != nil {
+			return "", fmt.Errorf("HEAD: %v; GET: %w", headErr, getErr)
+		}
+		return "", getErr
+	}
+	defer getResp.Body.Close()
+	return fmt.Sprintf("HTTP %d", getResp.StatusCode), nil
 }
 
 func cmdDoctor(args []string) {

@@ -260,8 +260,9 @@ func serve() {
 
 	// Boot-time summary: one line covers the bulk of "why did my call fail?"
 	// debugging. A WARN variant fires when the approver is absent but the
-	// ruleset needs one, which is the #1 silent-failure mode.
-	emitStartupBanner(engine.Describe(), approvalURL)
+	// ruleset needs one, which is the #1 silent-failure mode. Explicit
+	// -http=none is NOT treated as misconfiguration.
+	emitStartupBanner(engine.Describe(), approvalURL, approverDisabled)
 
 	handler := func(direction string, raw []byte, msg *proxy.Message) *proxy.HandlerResult {
 		method := ""
@@ -679,47 +680,57 @@ func approvalRejectionResponse(toolName, ruleName string, riskScore int, approva
 }
 
 // emitStartupBanner prints a one-line policy/approver summary on stderr. When
-// the approver is missing but pause rules exist, the line is marked WARN so
-// operators spot the misconfiguration before their first failing tool call.
-func emitStartupBanner(summary policy.Summary, approvalURL string) {
+// pause rules exist without a reachable approver AND the operator didn't opt
+// out via -http=none, the line is marked WARN so misconfiguration is caught
+// before the first failing tool call.
+//
+// "require approval" is reserved for pause rules; block rules are enforced
+// without user interaction and are reported separately.
+func emitStartupBanner(summary policy.Summary, approvalURL string, approverDisabled bool) {
 	pauseCount := len(summary.PauseRules)
 	blockCount := len(summary.BlockRules)
-	requireApproval := pauseCount + blockCount
 
 	approverState := approvalURL
-	if approverState == "" {
+	switch {
+	case approverDisabled:
+		approverState = "disabled"
+	case approverState == "":
 		approverState = "NONE"
 	}
 
-	pauseBlockNames := append([]string{}, summary.PauseRules...)
-	pauseBlockNames = append(pauseBlockNames, summary.BlockRules...)
-
 	level := "INFO"
 	suffix := ""
-	if approvalURL == "" && pauseCount > 0 {
+	// Only warn on the accidental case: pause rules loaded, no approver,
+	// and operator didn't explicitly opt out.
+	if approvalURL == "" && !approverDisabled && pauseCount > 0 {
 		level = "WARN"
 		suffix = " — pause rules will fail (set -http=ADDR to enable approver, or -http=none to acknowledge)"
 	}
 
-	names := ""
-	if len(pauseBlockNames) > 0 {
-		names = fmt.Sprintf(" (%s)", strings.Join(pauseBlockNames, ", "))
+	pauseDesc := ""
+	if pauseCount > 0 {
+		pauseDesc = fmt.Sprintf(" (%s)", strings.Join(summary.PauseRules, ", "))
+	}
+	blockDesc := ""
+	if blockCount > 0 {
+		blockDesc = fmt.Sprintf(", %d block (%s)", blockCount, strings.Join(summary.BlockRules, ", "))
 	}
 
 	fmt.Fprintf(os.Stderr,
-		"mcp-proxy: [%s] policy: %d rules loaded, %d require approval%s; approver: %s%s\n",
-		level, summary.EnabledRules, requireApproval, names, approverState, suffix,
+		"mcp-proxy: [%s] policy: %d rules loaded, %d require approval%s%s; approver: %s%s\n",
+		level, summary.EnabledRules, pauseCount, pauseDesc, blockDesc, approverState, suffix,
 	)
 
 	// Machine-readable companion line for tooling.
 	payload := map[string]any{
-		"event":        "policy_banner",
-		"level":        level,
-		"rules_loaded": summary.EnabledRules,
-		"pause_rules":  summary.PauseRules,
-		"block_rules":  summary.BlockRules,
-		"approver_url": approvalURL,
-		"approver_set": approvalURL != "",
+		"event":             "policy_banner",
+		"level":             level,
+		"rules_loaded":      summary.EnabledRules,
+		"pause_rules":       summary.PauseRules,
+		"block_rules":       summary.BlockRules,
+		"approver_url":      approvalURL,
+		"approver_set":      approvalURL != "",
+		"approver_disabled": approverDisabled,
 	}
 	if b, err := json.Marshal(payload); err == nil {
 		fmt.Fprintln(os.Stderr, string(b))
@@ -728,12 +739,14 @@ func emitStartupBanner(summary policy.Summary, approvalURL string) {
 
 // emitPolicyEvent writes one structured key=value log line per pause/block
 // outcome. Cheap to grep, cheap to parse, small enough to ship to SIEMs.
+// String values are %q-quoted so rule/tool names with spaces or "=" remain
+// unambiguous when parsed.
 func emitPolicyEvent(tool, rule string, risk int, action, approverURL, outcome string, durationMs int64) {
 	approver := approverURL
 	if approver == "" {
 		approver = "NONE"
 	}
-	log.Printf("mcp-proxy: policy_event tool=%s rule=%s risk=%d action=%s approver=%s outcome=%s duration_ms=%d",
+	log.Printf("mcp-proxy: policy_event tool=%q rule=%q risk=%d action=%q approver=%q outcome=%q duration_ms=%d",
 		tool, rule, risk, action, approver, outcome, durationMs)
 }
 

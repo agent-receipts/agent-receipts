@@ -114,6 +114,9 @@ func TestEnsureDBDirNoOpForBareFilename(t *testing.T) {
 
 // captureStderr redirects os.Stderr for the duration of fn and returns the
 // captured output. Log package output is routed through the same pipe.
+//
+// Uses defer so the reader goroutine is unblocked even if fn() panics or
+// calls t.Fatal — otherwise the test would hang indefinitely on io.ReadAll.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
@@ -124,10 +127,6 @@ func captureStderr(t *testing.T, fn func()) string {
 	oldLog := log.Writer()
 	os.Stderr = w
 	log.SetOutput(w)
-	t.Cleanup(func() {
-		os.Stderr = oldStderr
-		log.SetOutput(oldLog)
-	})
 
 	done := make(chan string, 1)
 	go func() {
@@ -135,6 +134,13 @@ func captureStderr(t *testing.T, fn func()) string {
 		done <- string(b)
 	}()
 
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+		log.SetOutput(oldLog)
+		r.Close()
+	})
+
+	defer w.Close() // Ensure reader unblocks even on fn() panic/Fatal.
 	fn()
 	w.Close()
 	return <-done
@@ -142,7 +148,7 @@ func captureStderr(t *testing.T, fn func()) string {
 
 func TestStartupBannerWarnsWhenApproverMissing(t *testing.T) {
 	summary := policy.NewEngine(policy.DefaultRules()).Describe()
-	out := captureStderr(t, func() { emitStartupBanner(summary, "") })
+	out := captureStderr(t, func() { emitStartupBanner(summary, "", false) })
 
 	if !strings.Contains(out, "[WARN]") {
 		t.Errorf("expected WARN marker in banner, got: %s", out)
@@ -163,7 +169,7 @@ func TestStartupBannerWarnsWhenApproverMissing(t *testing.T) {
 
 func TestStartupBannerInfoWhenApproverSet(t *testing.T) {
 	summary := policy.NewEngine(policy.DefaultRules()).Describe()
-	out := captureStderr(t, func() { emitStartupBanner(summary, "http://127.0.0.1:8081") })
+	out := captureStderr(t, func() { emitStartupBanner(summary, "http://127.0.0.1:8081", false) })
 
 	if !strings.Contains(out, "[INFO]") {
 		t.Errorf("expected INFO marker, got: %s", out)
@@ -181,10 +187,22 @@ func TestStartupBannerNoPauseRulesNoWarn(t *testing.T) {
 	summary := policy.NewEngine([]policy.Rule{
 		{Name: "flag_all", Enabled: true, Action: "flag"},
 	}).Describe()
-	out := captureStderr(t, func() { emitStartupBanner(summary, "") })
+	out := captureStderr(t, func() { emitStartupBanner(summary, "", false) })
 
 	if strings.Contains(out, "WARN") {
 		t.Errorf("did not expect WARN for flag-only ruleset, got: %s", out)
+	}
+}
+
+func TestStartupBannerNoWarnWhenApproverExplicitlyDisabled(t *testing.T) {
+	summary := policy.NewEngine(policy.DefaultRules()).Describe()
+	out := captureStderr(t, func() { emitStartupBanner(summary, "", true) })
+
+	if strings.Contains(out, "WARN") {
+		t.Errorf("did not expect WARN when approver explicitly disabled, got: %s", out)
+	}
+	if !strings.Contains(out, "approver: disabled") {
+		t.Errorf("expected 'approver: disabled' in banner, got: %s", out)
 	}
 }
 
