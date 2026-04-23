@@ -43,7 +43,7 @@ codex mcp add github-audited \
     -issuer-name Codex \
     -operator-id did:web:openai.com \
     -operator-name OpenAI \
-    "$(which github-mcp-server)"
+    "$(which github-mcp-server)" stdio
 ```
 
 Add `--scope user` to make the server available across all projects (default is project-scoped).
@@ -73,7 +73,7 @@ args = [
   "-issuer-name", "Codex",
   "-operator-id", "did:web:openai.com",
   "-operator-name", "OpenAI",
-  "/opt/homebrew/bin/github-mcp-server"
+  "/opt/homebrew/bin/github-mcp-server", "stdio"
 ]
 enabled = true
 

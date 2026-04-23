@@ -52,7 +52,7 @@ Then substitute the four values into the template:
         "-name", "github",
         "-key", "/Users/YOU/.agent-receipts/github-proxy.pem",
         "-receipt-db", "/Users/YOU/.agent-receipts/receipts.db",
-        "/opt/homebrew/bin/github-mcp-server"
+        "/opt/homebrew/bin/github-mcp-server", "stdio"
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_TOKEN"

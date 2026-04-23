@@ -44,7 +44,7 @@ claude mcp add-json github-audited --scope user "$(cat <<JSON
     "-issuer-name", "Claude Code",
     "-operator-id", "did:web:anthropic.com",
     "-operator-name", "Anthropic",
-    "$(which github-mcp-server)"
+    "$(which github-mcp-server)", "stdio"
   ],
   "env": {
     "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_TOKEN"
@@ -89,7 +89,7 @@ echo "server:  $(which github-mcp-server)"
         "-issuer-name", "Claude Code",
         "-operator-id", "did:web:anthropic.com",
         "-operator-name", "Anthropic",
-        "/opt/homebrew/bin/github-mcp-server"
+        "/opt/homebrew/bin/github-mcp-server", "stdio"
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
