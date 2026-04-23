@@ -182,13 +182,14 @@ def hash_receipt(receipt: AgentReceipt | dict[str, Any]) -> str:
     if isinstance(receipt, AgentReceipt):
         d: dict[str, Any] = receipt.model_dump(by_alias=True, exclude_none=True)
     else:
-        # Strip optional nulls from plain-dict receipts, then re-insert the
-        # required-nullable field so it is never accidentally dropped.
+        # Strip optional nulls from plain-dict receipts. _strip_optional_nulls
+        # also drops previous_receipt_hash when its value is None; the
+        # re-insertion below restores it as the required-nullable field.
         d = _strip_optional_nulls(dict(receipt))
 
     d.pop("proof", None)
 
-    # Ensure previous_receipt_hash is preserved as null when None
+    # Ensure previous_receipt_hash is preserved as null when None.
     cs: dict[str, Any] = d.get("credentialSubject", {})
     chain: dict[str, Any] = cs.get("chain", {})
     if "previous_receipt_hash" not in chain:

@@ -22,7 +22,7 @@ VECTORS_PATH = (
 
 
 def _load_vectors() -> dict:
-    with open(VECTORS_PATH) as f:
+    with open(VECTORS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -31,8 +31,12 @@ def _sha256_hex(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
-def _canonical_bytes(value: object) -> bytes:
-    return canonicalize(value).encode("utf-8")
+# JSON has no signed-zero literal that round-trips through json.load: -0 parses
+# as the int 0, so we substitute -0.0 (a float) for the negative-zero vector to
+# exercise _canonicalize_number rather than the int branch.
+_VECTOR_INPUT_OVERRIDES: dict[str, object] = {
+    "number_negative_zero": -0.0,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +49,7 @@ def _canon_params() -> list[pytest.param]:
     params = []
     for v in data["canonicalization_vectors"]:
         name = v["name"]
-        inp = v["input"]
+        inp = _VECTOR_INPUT_OVERRIDES.get(name, v["input"])
         canonical = v["canonical"]
         params.append(pytest.param(inp, canonical, id=name))
     return params
@@ -69,7 +73,8 @@ def _canon_hash_params() -> list[pytest.param]:
         name = v["name"]
         expected_hash = v.get("expectedHash")
         if expected_hash and expected_hash not in ("COMPUTE_AT_COMMIT_TIME",):
-            params.append(pytest.param(v["input"], expected_hash, id=name))
+            inp = _VECTOR_INPUT_OVERRIDES.get(name, v["input"])
+            params.append(pytest.param(inp, expected_hash, id=name))
     return params
 
 
@@ -126,7 +131,10 @@ def _receipt_hash_params() -> list[pytest.param]:
     return params
 
 
-@pytest.mark.parametrize("receipt,expected_hash,must_contain", _receipt_hash_params())
+@pytest.mark.parametrize(
+    "receipt,expected_hash,must_contain",
+    _receipt_hash_params(),
+)
 def test_receipt_hash_vector(
     receipt: dict,
     expected_hash: str,
