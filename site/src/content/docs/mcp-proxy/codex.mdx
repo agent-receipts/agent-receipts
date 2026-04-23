@@ -10,6 +10,13 @@ OpenAI Codex (CLI and IDE extension) stores MCP configuration in `~/.codex/confi
 - [mcp-proxy installed](/mcp-proxy/installation/)
 - A signing key pair generated (see below)
 - Codex installed (`npm install -g @openai/codex` or via the IDE extension)
+- The MCP server you want to audit. The examples below wrap the GitHub MCP server:
+
+  ```bash
+  npm install -g @modelcontextprotocol/server-github
+  ```
+
+  This puts an `mcp-server-github` binary on your `$PATH`. Verify with `which mcp-server-github`.
 
 ## Generate a signing key
 

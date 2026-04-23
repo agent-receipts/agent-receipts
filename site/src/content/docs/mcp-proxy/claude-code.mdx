@@ -10,6 +10,13 @@ Claude Code is a CLI-based agent that connects to MCP servers for tools like Git
 - [mcp-proxy installed](/mcp-proxy/installation/)
 - A signing key pair generated (see below)
 - Claude Code installed (`npm install -g @anthropic-ai/claude-code`)
+- The MCP server you want to audit. The examples below wrap the GitHub MCP server:
+
+  ```bash
+  npm install -g @modelcontextprotocol/server-github
+  ```
+
+  This puts an `mcp-server-github` binary on your `$PATH`. Verify with `which mcp-server-github`.
 
 ## Generate a signing key
 

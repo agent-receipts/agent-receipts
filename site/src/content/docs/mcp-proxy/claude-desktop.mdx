@@ -9,6 +9,13 @@ Claude Desktop connects to MCP servers via `claude_desktop_config.json`. The Age
 
 - [mcp-proxy installed](/mcp-proxy/installation/)
 - A signing key pair generated (see below)
+- The MCP server you want to audit. The example below wraps the GitHub MCP server:
+
+  ```bash
+  npm install -g @modelcontextprotocol/server-github
+  ```
+
+  This puts an `mcp-server-github` binary on your `$PATH`. Verify with `which mcp-server-github`.
 
 ## Generate a signing key
 
