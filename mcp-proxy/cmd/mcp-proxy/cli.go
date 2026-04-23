@@ -13,6 +13,10 @@ import (
 )
 
 func openReceiptStore(path string) *store.Store {
+	if err := ensureDBDir(path); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating receipt store directory: %v\n", err)
+		os.Exit(1)
+	}
 	s, err := store.Open(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening receipt store: %v\n", err)
@@ -263,6 +267,10 @@ func cmdStats(args []string) {
 }
 
 func openAuditStore(path string) *audit.Store {
+	if err := ensureDBDir(path); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating audit store directory: %v\n", err)
+		os.Exit(1)
+	}
 	s, err := audit.Open(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening audit store: %v\n", err)

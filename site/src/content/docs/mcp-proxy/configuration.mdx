@@ -7,8 +7,8 @@ description: CLI flags, policy rules, redaction, and encryption options for the 
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-db` | `$HOME/.agent-receipts/audit.db` | SQLite audit database path. Parent directory is created (mode 0700) on first run. |
-| `-receipt-db` | `$HOME/.agent-receipts/receipts.db` | SQLite receipt store path. Parent directory is created (mode 0700) on first run. |
+| `-db` | `$HOME/.agent-receipts/audit.db` | SQLite audit database path. Parent directory is created on first run (mode 0700 on Unix). |
+| `-receipt-db` | `$HOME/.agent-receipts/receipts.db` | SQLite receipt store path. Parent directory is created on first run (mode 0700 on Unix). |
 | `-key` | (ephemeral) | Ed25519 private key PEM file for signing receipts |
 | `-taxonomy` | (none) | Taxonomy mappings JSON file for action classification |
 | `-rules` | (built-in defaults) | Policy rules YAML file |

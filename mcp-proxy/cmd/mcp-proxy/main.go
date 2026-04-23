@@ -615,13 +615,15 @@ func buildApprovalDeniedMessage(toolName, ruleName string, riskScore int, approv
 	}
 }
 
-// defaultDBPath returns an absolute path under $HOME/.agent-receipts/ for the
-// given filename. MCP clients (Claude Desktop, Claude Code, Codex) spawn the
-// proxy with an unwritable cwd, so a relative default would crash on first
-// open. Falls back to the bare filename if the home directory is unavailable.
+// defaultDBPath returns an absolute path under the user's home directory
+// (`~/.agent-receipts/<name>`) for the given filename. MCP clients (Claude
+// Desktop, Claude Code, Codex) spawn the proxy with an unwritable cwd, so a
+// relative default would crash on first open. Falls back to the bare filename
+// only if the home directory cannot be resolved to an absolute path — callers
+// are expected to surface a clear error when that fallback is hit.
 func defaultDBPath(name string) string {
 	home, err := os.UserHomeDir()
-	if err != nil {
+	if err != nil || home == "" || !filepath.IsAbs(home) {
 		return name
 	}
 	return filepath.Join(home, ".agent-receipts", name)
