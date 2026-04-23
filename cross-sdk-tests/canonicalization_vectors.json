@@ -63,8 +63,8 @@
     {
       "name": "number_negative_zero",
       "rule": "rule4_numbers",
-      "description": "-0 must serialise as 0 per RFC 8785. Language note: JSON parsers typically return -0 for the literal -0; SDKs that parse this vector's canonical-field-free input form must preserve the sign to test the rule. Implementations should construct the number explicitly rather than relying on JSON round-trip.",
-      "input": -0,
+      "description": "-0 must serialise as 0 per RFC 8785. This vector uses JSON -0.0 (rather than -0) so standard decoders preserve IEEE 754 negative zero without requiring harness special-casing: Python json.loads, JavaScript JSON.parse, and Go json.Unmarshal into float64/interface{} all round-trip -0.0 as a float with a negative sign bit.",
+      "input": -0.0,
       "canonical": "0"
     },
     {

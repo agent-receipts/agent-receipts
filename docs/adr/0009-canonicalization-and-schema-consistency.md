@@ -109,8 +109,9 @@ error. The `receipt_required_null_preserved` vector in
   `validFrom`; states `issuanceDate` is the committed name.
 - All three SDKs: null-normalisation rule applied consistently (see bug-fix
   PRs for implementation details).
-- `cross-sdk-tests/canonicalization_vectors.json` added; all SDKs run it in
-  CI and assert byte-equality on every vector.
+- `cross-sdk-tests/canonicalization_vectors.json` added; each SDK must run
+  it in CI and assert byte-equality on every vector (integration tracked in
+  #82, #86, #118).
 
 ---
 

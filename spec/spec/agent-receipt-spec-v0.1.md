@@ -433,7 +433,7 @@ Implementations MUST apply the following normalisation before serializing to RFC
 - **Required-nullable fields** — fields listed in the schema `required` array whose type permits `null` MUST be emitted with their value, including the explicit JSON `null` literal when the value is null. The only current required-nullable field is `credentialSubject.chain.previous_receipt_hash` (null for the first receipt in a chain, a hash string for all subsequent receipts).
 - **Optional fields** — fields not listed in `required` MUST NOT be emitted when their value is null or absent. An SDK that receives `null` on an optional field MUST normalise it to absent before canonicalising. The form `"error":null` is not a valid canonical representation.
 
-This rule ensures all three SDKs produce byte-identical canonical output for the same logical receipt regardless of whether an optional field is set to `null` or simply omitted by the caller. Cross-SDK test vectors in `cross-sdk-tests/canonicalization_vectors.json` enforce this invariant in CI.
+This rule ensures all three SDKs produce byte-identical canonical output for the same logical receipt regardless of whether an optional field is set to `null` or simply omitted by the caller. Cross-SDK test vectors in `cross-sdk-tests/canonicalization_vectors.json` pin the expected behaviour and are intended to enforce this invariant once integrated into each SDK's CI (tracked in #82, #86, #118).
 
 ### 7.2 Signing
 
