@@ -73,3 +73,93 @@ func TestScoreRisk(t *testing.T) {
 		t.Errorf("delete_auth_config with SQL: expected 100, got %d", score)
 	}
 }
+
+// TestScoreRisk_SQLMutationHeuristic covers the false-positive fix: the SQL
+// mutation check must only fire on values under SQL-context keys (sql, query,
+// statement, command), not on arbitrary prose that happens to contain mutation
+// keywords.
+func TestScoreRisk_SQLMutationHeuristic(t *testing.T) {
+	sqlMutationReason := "SQL mutation without WHERE clause"
+
+	containsReason := func(reasons []string, r string) bool {
+		for _, s := range reasons {
+			if s == r {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 1. create_pull_request with a title containing "update" — write only (20),
+	//    the SQL mutation reason must NOT appear.
+	score, reasons := ScoreRisk("create_pull_request", map[string]any{
+		"title": "docs: update ecosystem framing",
+		"body":  "This PR updates the ecosystem section.",
+	})
+	if score != 20 {
+		t.Errorf("create_pull_request with prose title: expected score 20, got %d", score)
+	}
+	if containsReason(reasons, sqlMutationReason) {
+		t.Errorf("create_pull_request with prose title: SQL mutation reason must not be present, reasons=%v", reasons)
+	}
+
+	// 2. Tool with {"query": "UPDATE users SET x=1"} — no WHERE, should add +30.
+	score, reasons = ScoreRisk("run_query", map[string]any{
+		"query": "UPDATE users SET x=1",
+	})
+	// run_query is execute (+30) + SQL mutation (+30) = 60
+	if score != 60 {
+		t.Errorf("run_query UPDATE without WHERE: expected 60, got %d", score)
+	}
+	if !containsReason(reasons, sqlMutationReason) {
+		t.Errorf("run_query UPDATE without WHERE: SQL mutation reason must be present, reasons=%v", reasons)
+	}
+
+	// 3. Tool with {"query": "UPDATE users SET x=1 WHERE id=1"} — has WHERE, should NOT add +30.
+	score, _ = ScoreRisk("run_query", map[string]any{
+		"query": "UPDATE users SET x=1 WHERE id=1",
+	})
+	// run_query is execute (+30), no extra SQL mutation
+	if score != 30 {
+		t.Errorf("run_query UPDATE with WHERE: expected 30, got %d", score)
+	}
+
+	// 4. Tool with {"sql": "DROP TABLE foo"} — should trigger +30.
+	score, reasons = ScoreRisk("exec_command", map[string]any{
+		"sql": "DROP TABLE foo",
+	})
+	// exec_command is execute (+30) + SQL mutation (+30) = 60
+	if score != 60 {
+		t.Errorf("exec_command DROP TABLE: expected 60, got %d", score)
+	}
+	if !containsReason(reasons, sqlMutationReason) {
+		t.Errorf("exec_command DROP TABLE: SQL mutation reason must be present, reasons=%v", reasons)
+	}
+
+	// 5. Nested args {"params": {"statement": "DELETE FROM t"}} — should trigger.
+	score, reasons = ScoreRisk("run_query", map[string]any{
+		"params": map[string]any{
+			"statement": "DELETE FROM t",
+		},
+	})
+	// run_query is execute (+30) + SQL mutation (+30) = 60
+	if score != 60 {
+		t.Errorf("nested statement DELETE: expected 60, got %d", score)
+	}
+	if !containsReason(reasons, sqlMutationReason) {
+		t.Errorf("nested statement DELETE: SQL mutation reason must be present, reasons=%v", reasons)
+	}
+
+	// 6. Tool with {"title": "docs: delete stale section", "body": "…"} — should NOT trigger.
+	score, reasons = ScoreRisk("create_pull_request", map[string]any{
+		"title": "docs: delete stale section",
+		"body":  "Removes outdated content.",
+	})
+	// create_pull_request is write (+20), no SQL mutation
+	if score != 20 {
+		t.Errorf("create_pull_request prose delete title: expected 20, got %d", score)
+	}
+	if containsReason(reasons, sqlMutationReason) {
+		t.Errorf("create_pull_request prose delete title: SQL mutation reason must not be present, reasons=%v", reasons)
+	}
+}

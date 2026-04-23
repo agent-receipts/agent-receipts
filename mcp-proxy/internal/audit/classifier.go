@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"encoding/json"
 	"strings"
 )
 
@@ -68,6 +67,39 @@ func ClassifyOperation(toolName string) string {
 	return "unknown"
 }
 
+// sqlValContainsMutation walks args recursively and returns true when a value
+// stored under a SQL-context key (sql, query, statement, command) contains one
+// of the mutation keywords but does NOT contain "where". This scoping prevents
+// natural-English prose in unrelated argument fields from tripping the check.
+func sqlValContainsMutation(args map[string]any, sqlContextKeys, mutations []string) bool {
+	for k, v := range args {
+		kLower := strings.ToLower(k)
+		switch val := v.(type) {
+		case string:
+			for _, ctxKey := range sqlContextKeys {
+				if kLower == ctxKey {
+					s := strings.ToLower(val)
+					if strings.Contains(s, "where") {
+						break
+					}
+					for _, m := range mutations {
+						if strings.Contains(s, m) {
+							return true
+						}
+					}
+					break
+				}
+			}
+		case map[string]any:
+			// Recurse into nested argument objects.
+			if sqlValContainsMutation(val, sqlContextKeys, mutations) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ScoreRisk computes a risk score (0-100) for a tool call.
 func ScoreRisk(toolName string, arguments map[string]any) (int, []string) {
 	score := 0
@@ -104,17 +136,17 @@ func ScoreRisk(toolName string, arguments map[string]any) (int, []string) {
 		}
 	}
 
-	// Check for SQL mutation without WHERE.
+	// Check for SQL mutation without WHERE clause.
+	// We only inspect values that live under SQL-context keys (sql, query,
+	// statement, command) to avoid false-positives when natural-English prose
+	// in unrelated fields (e.g. a PR title containing "update") matches the
+	// mutation keywords.
 	if arguments != nil {
-		argJSON, _ := json.Marshal(arguments)
-		argStr := strings.ToLower(string(argJSON))
+		sqlContextKeys := []string{"sql", "query", "statement", "command"}
 		sqlMutations := []string{"drop ", "delete ", "update ", "truncate ", "alter "}
-		for _, m := range sqlMutations {
-			if strings.Contains(argStr, m) && !strings.Contains(argStr, "where") {
-				score += 30
-				reasons = append(reasons, "SQL mutation without WHERE clause")
-				break
-			}
+		if sqlValContainsMutation(arguments, sqlContextKeys, sqlMutations) {
+			score += 30
+			reasons = append(reasons, "SQL mutation without WHERE clause")
 		}
 	}
 
