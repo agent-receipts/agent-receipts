@@ -23,7 +23,7 @@ List receipts from the audit store. Results are sorted **newest first** — the 
 ```bash
 mcp-proxy list                            # latest 50 receipts, newest first
 mcp-proxy list -risk high                 # filter by risk level
-mcp-proxy list -action read_file          # filter by action type
+mcp-proxy list -action data.api.read      # filter by action type (taxonomy value)
 mcp-proxy list -chain <chain-id>          # filter by chain
 mcp-proxy list -limit 100                 # limit results
 mcp-proxy list -json                      # JSON output
@@ -62,7 +62,7 @@ urn:receipt:d52ba1fd... github         issue_write                    data.api.w
 
 SERVER comes from the `-name` flag passed to `mcp-proxy` when it was started; it identifies which MCP server handled the call. TOOL is the raw tool name (truncated at 30 characters). When running multiple proxied servers simultaneously — for example GitHub and Atlassian — the SERVER column is how you tell their receipts apart at a glance.
 
-The `-action` filter matches the ACTION column (taxonomy type, e.g. `data.api.read`), not the TOOL column. Issuer and operator identity isn't shown in the tabular view — use `mcp-proxy inspect` or `mcp-proxy list -json` to see it.
+The `-action` filter matches the ACTION column (taxonomy type, e.g. `data.api.read`), not the TOOL column. Issuer and operator identity isn't shown in the tabular view — use `mcp-proxy list -json` to see it.
 
 ## `mcp-proxy inspect`
 
