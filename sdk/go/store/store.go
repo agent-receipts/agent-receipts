@@ -2,6 +2,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -208,6 +209,102 @@ func (s *Store) GetChain(chainID string) ([]receipt.AgentReceipt, error) {
 
 // QueryReceipts retrieves receipts matching the given filters.
 func (s *Store) QueryReceipts(q Query) ([]receipt.AgentReceipt, error) {
+	query, args := buildQueryReceiptsSQL(q)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query receipts: %w", err)
+	}
+	defer rows.Close()
+	return scanReceipts(rows)
+}
+
+// MaxRowID returns the largest SQLite rowid currently in the receipts table.
+// Returns 0 when the table is empty. Intended as the watermark for follow-mode
+// streaming — callers pass it to QueryAfterRowID to fetch rows inserted later.
+func (s *Store) MaxRowID() (int64, error) {
+	var max int64
+	if err := s.db.QueryRow("SELECT COALESCE(MAX(rowid), 0) FROM receipts").Scan(&max); err != nil {
+		return 0, fmt.Errorf("max rowid: %w", err)
+	}
+	return max, nil
+}
+
+// QueryAfterRowID returns receipts with rowid > afterRowID that match the
+// non-ordering filters in q, ordered ascending by rowid. The returned int64
+// is the largest rowid in the result set, or afterRowID when no rows match —
+// callers feed it back in to poll for subsequent inserts.
+//
+// NewestFirst is ignored (follow-mode rows are always chronological). Limit
+// defaults to 10000 like QueryReceipts but is typically set much lower when
+// polling.
+//
+// Callers that want to bound query latency (e.g. so Ctrl-C in follow mode
+// stops a busy/locked query promptly) should use QueryAfterRowIDContext.
+func (s *Store) QueryAfterRowID(q Query, afterRowID int64) ([]receipt.AgentReceipt, int64, error) {
+	return s.QueryAfterRowIDContext(context.Background(), q, afterRowID)
+}
+
+// QueryAfterRowIDContext is the context-aware form of QueryAfterRowID. When
+// ctx is canceled, the in-flight SQLite query is interrupted so callers (e.g.
+// follow-mode pollers) don't have to wait on busy_timeout before shutting
+// down.
+func (s *Store) QueryAfterRowIDContext(ctx context.Context, q Query, afterRowID int64) ([]receipt.AgentReceipt, int64, error) {
+	query, args := buildQueryAfterRowIDSQL(q, afterRowID)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, afterRowID, fmt.Errorf("query after rowid %d: %w", afterRowID, err)
+	}
+	defer rows.Close()
+	return scanRowIDReceipts(rows, afterRowID)
+}
+
+// QueryReceiptsWithWatermark runs the standard filtered receipt query and
+// captures the table's MaxRowID atomically in a single read transaction.
+// Intended for follow-mode startup: the returned watermark is consistent with
+// the rows emitted, eliminating the race where a row inserted between a
+// naive Query + MaxRowID pair can be silently skipped.
+//
+// Callers that want Ctrl-C to interrupt the startup query should use
+// QueryReceiptsWithWatermarkContext.
+func (s *Store) QueryReceiptsWithWatermark(q Query) ([]receipt.AgentReceipt, int64, error) {
+	return s.QueryReceiptsWithWatermarkContext(context.Background(), q)
+}
+
+// QueryReceiptsWithWatermarkContext is the context-aware form of
+// QueryReceiptsWithWatermark. The supplied context governs both the
+// transaction and each query inside it, so cancellation interrupts in-flight
+// work instead of waiting for busy_timeout.
+func (s *Store) QueryReceiptsWithWatermarkContext(ctx context.Context, q Query) ([]receipt.AgentReceipt, int64, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, 0, fmt.Errorf("begin read transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query, args := buildQueryReceiptsSQL(q)
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query receipts: %w", err)
+	}
+	receipts, err := scanReceipts(rows)
+	rows.Close()
+	if err != nil {
+		return nil, 0, fmt.Errorf("scan receipts: %w", err)
+	}
+
+	var maxRowID int64
+	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(rowid), 0) FROM receipts").Scan(&maxRowID); err != nil {
+		return nil, 0, fmt.Errorf("max rowid: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, 0, fmt.Errorf("commit read transaction: %w", err)
+	}
+	return receipts, maxRowID, nil
+}
+
+// buildQueryReceiptsSQL builds the SQL and args for QueryReceipts. Extracted
+// so QueryReceiptsWithWatermark can run the same query inside a transaction.
+func buildQueryReceiptsSQL(q Query) (string, []any) {
 	var conds []string
 	var args []any
 
@@ -245,7 +342,6 @@ func (s *Store) QueryReceipts(q Query) ([]receipt.AgentReceipt, error) {
 	if q.Limit != nil {
 		limit = *q.Limit
 	}
-
 	order := "ASC"
 	if q.NewestFirst {
 		order = "DESC"
@@ -255,13 +351,74 @@ func (s *Store) QueryReceipts(q Query) ([]receipt.AgentReceipt, error) {
 		where, order,
 	)
 	args = append(args, limit)
+	return query, args
+}
 
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		return nil, err
+// buildQueryAfterRowIDSQL builds the rowid-watermark query SQL + args.
+func buildQueryAfterRowIDSQL(q Query, afterRowID int64) (string, []any) {
+	conds := []string{"rowid > ?"}
+	args := []any{afterRowID}
+
+	if q.ChainID != nil {
+		conds = append(conds, "chain_id = ?")
+		args = append(args, *q.ChainID)
 	}
-	defer rows.Close()
-	return scanReceipts(rows)
+	if q.ActionType != nil {
+		conds = append(conds, "action_type = ?")
+		args = append(args, *q.ActionType)
+	}
+	if q.RiskLevel != nil {
+		conds = append(conds, "risk_level = ?")
+		args = append(args, string(*q.RiskLevel))
+	}
+	if q.Status != nil {
+		conds = append(conds, "status = ?")
+		args = append(args, string(*q.Status))
+	}
+	if q.After != nil {
+		conds = append(conds, "timestamp >= ?")
+		args = append(args, *q.After)
+	}
+	if q.Before != nil {
+		conds = append(conds, "timestamp <= ?")
+		args = append(args, *q.Before)
+	}
+
+	limit := 10000
+	if q.Limit != nil {
+		limit = *q.Limit
+	}
+	args = append(args, limit)
+
+	query := fmt.Sprintf(
+		"SELECT rowid, receipt_json FROM receipts WHERE %s ORDER BY rowid ASC LIMIT ?",
+		strings.Join(conds, " AND "),
+	)
+	return query, args
+}
+
+func scanRowIDReceipts(rows *sql.Rows, afterRowID int64) ([]receipt.AgentReceipt, int64, error) {
+	var receipts []receipt.AgentReceipt
+	maxRowID := afterRowID
+	for rows.Next() {
+		var rowid int64
+		var rJSON string
+		if err := rows.Scan(&rowid, &rJSON); err != nil {
+			return nil, maxRowID, fmt.Errorf("scan receipt row: %w", err)
+		}
+		var r receipt.AgentReceipt
+		if err := json.Unmarshal([]byte(rJSON), &r); err != nil {
+			return nil, maxRowID, fmt.Errorf("corrupt receipt in store: %w", err)
+		}
+		receipts = append(receipts, r)
+		if rowid > maxRowID {
+			maxRowID = rowid
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, maxRowID, fmt.Errorf("iterate receipt rows: %w", err)
+	}
+	return receipts, maxRowID, nil
 }
 
 // Stats returns aggregate statistics for the store.
