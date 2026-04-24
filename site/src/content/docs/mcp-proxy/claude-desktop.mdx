@@ -91,6 +91,20 @@ mcp-proxy verify \
   <chain-id>
 ```
 
+```
+$ mcp-proxy list
+ID                     SERVER         TOOL                           ACTION                 RISK     STATUS   TIMESTAMP
+---
+urn:receipt:64b00b98... github         issue_write                    write                  medium   success  2026-04-24T01:55:09Z
+urn:receipt:276a6c2a... github         issue_write                    write                  medium   success  2026-04-24T01:48:55Z
+urn:receipt:a72ee10b... github         list_issues                    data.api.read          low      success  2026-04-24T01:45:07Z
+urn:receipt:a125fd30... github         list_pull_requests             data.api.read          low      success  2026-04-24T01:44:20Z
+
+4 receipts
+```
+
+The SERVER column reflects the `-name github` flag you passed to `mcp-proxy`. Read operations show `data.api.read / low`; writes show `write / medium`.
+
 ## Gotchas
 
 **Absolute paths required.** Claude Desktop launches MCP servers with a clean `PATH`. Use the full path to `mcp-proxy` (find it with `which mcp-proxy`) and the full path to the wrapped server binary.
