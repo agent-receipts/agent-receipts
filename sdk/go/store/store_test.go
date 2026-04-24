@@ -349,6 +349,47 @@ func TestQueryAfterRowIDReturnsOnlyNewRows(t *testing.T) {
 	}
 }
 
+func TestQueryReceiptsWithWatermarkReturnsConsistentPair(t *testing.T) {
+	s := setupStore(t)
+	kp, _ := receipt.GenerateKeyPair()
+
+	var prevHash *string
+	for i := 1; i <= 3; i++ {
+		r := makeSignedReceipt(t, kp, i, "chain-1", prevHash)
+		h, _ := receipt.HashReceipt(r)
+		if err := s.Insert(r, h); err != nil {
+			t.Fatal(err)
+		}
+		prevHash = &h
+	}
+
+	receipts, watermark, err := s.QueryReceiptsWithWatermark(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(receipts) != 3 {
+		t.Errorf("expected 3 receipts, got %d", len(receipts))
+	}
+	if watermark != 3 {
+		t.Errorf("expected watermark 3, got %d", watermark)
+	}
+
+	// Insert another row and confirm the watermark from above makes
+	// QueryAfterRowID return only the new row.
+	r := makeSignedReceipt(t, kp, 4, "chain-1", prevHash)
+	h, _ := receipt.HashReceipt(r)
+	if err := s.Insert(r, h); err != nil {
+		t.Fatal(err)
+	}
+	newRows, _, err := s.QueryAfterRowID(Query{}, watermark)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(newRows) != 1 {
+		t.Errorf("expected 1 new row after watermark, got %d", len(newRows))
+	}
+}
+
 func TestQueryAfterRowIDAppliesFilters(t *testing.T) {
 	s := setupStore(t)
 	kp, _ := receipt.GenerateKeyPair()

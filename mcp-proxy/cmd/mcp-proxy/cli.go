@@ -62,7 +62,18 @@ func cmdList(args []string) {
 		q.ActionType = actionType
 	}
 
-	receipts, err := s.QueryReceipts(q)
+	// In follow mode we capture the watermark atomically with the initial
+	// query so a row inserted between the two can't be silently skipped.
+	var (
+		receipts   []receipt.AgentReceipt
+		startRowID int64
+		err        error
+	)
+	if *follow {
+		receipts, startRowID, err = s.QueryReceiptsWithWatermark(q)
+	} else {
+		receipts, err = s.QueryReceipts(q)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error querying receipts: %v\n", err)
 		os.Exit(1)
@@ -70,8 +81,20 @@ func cmdList(args []string) {
 
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		enc.Encode(receipts)
+		if *follow {
+			// NDJSON — stream-compatible with the follow loop's output.
+			// QueryReceipts returned newest-first for display parity, but
+			// flip it here so the stream is chronological.
+			for i := len(receipts) - 1; i >= 0; i-- {
+				if err := enc.Encode(receipts[i]); err != nil {
+					fmt.Fprintf(os.Stderr, "Error encoding receipt: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		} else {
+			enc.SetIndent("", "  ")
+			enc.Encode(receipts)
+		}
 	} else {
 		fmt.Printf(listRowFmt, "ID", "ACTION", "RISK", "STATUS", "ISSUER", "OPERATOR", "TIMESTAMP")
 		fmt.Println("---")
@@ -83,12 +106,6 @@ func cmdList(args []string) {
 
 	if !*follow {
 		return
-	}
-
-	startRowID, err := s.MaxRowID()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading watermark: %v\n", err)
-		os.Exit(1)
 	}
 
 	// Follow mode strips NewestFirst/Limit: we want all new rows in insertion
@@ -137,9 +154,6 @@ func runFollowLoop(ctx context.Context, s *store.Store, lastRowID int64, q store
 				}
 			} else {
 				writeReceiptRows(w, newRows)
-			}
-			if f, ok := w.(interface{ Sync() error }); ok {
-				_ = f.Sync()
 			}
 		}
 	}
