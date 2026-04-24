@@ -23,7 +23,7 @@ List receipts from the audit store. Results are sorted **newest first** — the 
 ```bash
 mcp-proxy list                            # latest 50 receipts, newest first
 mcp-proxy list -risk high                 # filter by risk level
-mcp-proxy list -action read_file          # filter by action type
+mcp-proxy list -action data.api.read      # filter by action type (taxonomy value)
 mcp-proxy list -chain <chain-id>          # filter by chain
 mcp-proxy list -limit 100                 # limit results
 mcp-proxy list -json                      # JSON output
@@ -46,18 +46,23 @@ mcp-proxy list --follow --interval 1s     # custom poll interval
 
 ```
 $ mcp-proxy list
-ID                                       ACTION                 RISK   STATUS   ISSUER         OPERATOR               TIMESTAMP
+ID                     SERVER         TOOL                           ACTION                 RISK     STATUS   TIMESTAMP
 ---
-urn:receipt:58b9c7ff-cbed-45ed-a5bd-2... read                   low    success  codex          did:web:openai.com     2026-04-15T00:06:48Z
-urn:receipt:3384715f-d633-4031-b96f-c... read                   low    success  codex          did:web:openai.com     2026-04-15T00:06:26Z
-urn:receipt:c2e7b34f-04b2-42d1-a2f5-5... write                  medium success  Claude Code    did:web:anthropic.com  2026-04-15T00:01:39Z
-urn:receipt:ccf92d30-8369-411d-af29-d... read                   low    success                                        2026-04-14T23:56:09Z
-urn:receipt:ccc6860a-f1b5-4e2f-b3ea-a... read                   low    success  Claude Code    did:web:anthropic.com  2026-04-14T23:54:09Z
+urn:receipt:b4b430f9... atlassian      getJiraIssue                   data.api.read          low      success  2026-04-24T02:05:19Z
+urn:receipt:32506b71... atlassian      searchJiraIssuesUsingJql       data.api.read          low      success  2026-04-24T01:56:12Z
+urn:receipt:f5da030f... atlassian      getAccessibleAtlassianResou... data.api.read          low      success  2026-04-24T01:56:06Z
+urn:receipt:a125fd30... github         list_pull_requests             data.api.read          low      success  2026-04-24T01:44:20Z
+urn:receipt:67fede57... github         add_reply_to_pull_reques...    data.api.write         medium   success  2026-04-24T00:51:57Z
+urn:receipt:013bfc43... github         request_copilot_review         data.api.write         medium   success  2026-04-24T00:43:40Z
+urn:receipt:7ae4f1b2... github         issue_write                    data.api.write         medium   success  2026-04-24T00:19:35Z
+urn:receipt:d52ba1fd... github         issue_write                    data.api.write         medium   success  2026-04-24T00:19:25Z
 
-50 receipts
+8 receipts
 ```
 
-ISSUER is the agent name set via `--name`; OPERATOR is the operator DID set via `--operator`. Both are empty when the proxy is run without those flags.
+SERVER identifies which MCP server handled the call. It comes from the `-name` flag, defaulting to the wrapped command's basename if `-name` is omitted. TOOL is the raw tool name (truncated at 30 characters). When running multiple proxied servers simultaneously — for example GitHub and Atlassian — the SERVER column is how you tell their receipts apart at a glance.
+
+The `-action` filter matches the ACTION column (taxonomy type, e.g. `data.api.read`), not the TOOL column. Issuer and operator identity isn't shown in the tabular view — use `mcp-proxy list -json` to see it.
 
 ## `mcp-proxy inspect`
 

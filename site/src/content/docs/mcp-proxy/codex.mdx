@@ -108,6 +108,20 @@ mcp-proxy verify \
   <chain-id>
 ```
 
+```
+$ mcp-proxy list
+ID                     SERVER         TOOL                           ACTION                 RISK     STATUS   TIMESTAMP
+---
+urn:receipt:58b9c7ff... github         create_pull_request            data.api.write         medium   success  2026-04-15T00:06:48Z
+urn:receipt:3384715f... github         get_pull_request               data.api.read          low      success  2026-04-15T00:06:26Z
+urn:receipt:c2e7b34f... github         push_files                     data.api.write         medium   success  2026-04-15T00:01:39Z
+urn:receipt:ccc6860a... github         list_issues                    data.api.read          low      success  2026-04-14T23:54:09Z
+
+4 receipts
+```
+
+The SERVER column reflects the `-name github` flag you passed to `mcp-proxy`. The `-issuer-name Codex` flag stamps each receipt so you can tell Codex sessions apart from Claude Code or Claude Desktop when reviewing a shared audit store — that issuer/operator metadata doesn't appear in the tabular view, but it's visible via `mcp-proxy list -json`.
+
 ## Gotchas
 
 **Absolute paths required.** Codex launches MCP servers with a clean `PATH`. Use the full path to `mcp-proxy` (find it with `which mcp-proxy`) and the full path to the wrapped server binary.
