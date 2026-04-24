@@ -60,7 +60,7 @@ urn:receipt:d52ba1fd... github         issue_write                    data.api.w
 8 receipts
 ```
 
-SERVER comes from the `-name` flag passed to `mcp-proxy` when it was started; it identifies which MCP server handled the call. TOOL is the raw tool name (truncated at 30 characters). When running multiple proxied servers simultaneously — for example GitHub and Atlassian — the SERVER column is how you tell their receipts apart at a glance.
+SERVER identifies which MCP server handled the call. It comes from the `-name` flag, defaulting to the wrapped command's basename if `-name` is omitted. TOOL is the raw tool name (truncated at 30 characters). When running multiple proxied servers simultaneously — for example GitHub and Atlassian — the SERVER column is how you tell their receipts apart at a glance.
 
 The `-action` filter matches the ACTION column (taxonomy type, e.g. `data.api.read`), not the TOOL column. Issuer and operator identity isn't shown in the tabular view — use `mcp-proxy list -json` to see it.
 

@@ -167,7 +167,7 @@ Each tool call produces a signed W3C Verifiable Credential. Key fields shown (ab
 
 Receipts are Ed25519-signed, hash-chained per session, and stored in a local SQLite database. Use `mcp-proxy list`, `mcp-proxy inspect`, and `mcp-proxy verify` to query and validate them.
 
-`mcp-proxy list` gives a compact tabular view. When you proxy multiple MCP servers — for example GitHub and Atlassian — the SERVER and TOOL columns let you scan activity across all of them at once:
+`mcp-proxy list` gives a compact tabular view. The SERVER column is populated from the server name (defaulting to the wrapped command's basename if `-name` is omitted). When you proxy multiple MCP servers — for example GitHub and Atlassian — the SERVER and TOOL columns let you scan activity across all of them at once:
 
 ```
 $ mcp-proxy list
