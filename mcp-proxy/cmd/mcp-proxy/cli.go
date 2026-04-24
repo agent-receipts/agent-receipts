@@ -47,8 +47,8 @@ func cmdList(args []string) {
 	interval := fs.Duration("interval", 500*time.Millisecond, "Poll interval for --follow mode")
 	fs.Parse(args)
 
-	if *follow && *interval <= 0 {
-		fmt.Fprintf(os.Stderr, "Error: --interval must be positive, got %s\n", *interval)
+	if err := validateFollowFlags(*follow, *interval); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(2)
 	}
 
@@ -134,6 +134,16 @@ func cmdList(args []string) {
 		fmt.Fprintf(os.Stderr, "Error in follow loop: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// validateFollowFlags returns an error when --follow is set with a
+// non-positive --interval. Pulled out of cmdList so it can be tested
+// without invoking os.Exit.
+func validateFollowFlags(follow bool, interval time.Duration) error {
+	if follow && interval <= 0 {
+		return fmt.Errorf("--interval must be positive, got %s", interval)
+	}
+	return nil
 }
 
 // runFollowLoop polls the store on every tick for rows past lastRowID and

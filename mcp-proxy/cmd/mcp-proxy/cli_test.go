@@ -81,6 +81,38 @@ func (n *notifyWriter) waitForWrite(t *testing.T, timeout time.Duration) string 
 	}
 }
 
+// TestValidateFollowFlags covers the CLI argument-validation path so a
+// non-positive --interval with --follow fails fast instead of silently
+// resetting. cmdList turns the returned error into an exit 2.
+func TestValidateFollowFlags(t *testing.T) {
+	cases := []struct {
+		name     string
+		follow   bool
+		interval time.Duration
+		wantErr  bool
+	}{
+		{"follow with zero interval", true, 0, true},
+		{"follow with negative interval", true, -1 * time.Second, true},
+		{"follow with positive interval", true, 100 * time.Millisecond, false},
+		{"no follow, zero interval is fine", false, 0, false},
+		{"no follow, negative interval is fine", false, -5 * time.Second, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateFollowFlags(tc.follow, tc.interval)
+			if tc.wantErr && err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantErr && !strings.Contains(err.Error(), "must be positive") {
+				t.Errorf("error message missing \"must be positive\": %v", err)
+			}
+		})
+	}
+}
+
 // TestRunFollowLoopStreamsNewRows is the acceptance-criteria test from #216:
 // start follow, insert a row, block until the write lands, assert content.
 func TestRunFollowLoopStreamsNewRows(t *testing.T) {

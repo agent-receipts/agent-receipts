@@ -212,7 +212,7 @@ func (s *Store) QueryReceipts(q Query) ([]receipt.AgentReceipt, error) {
 	query, args := buildQueryReceiptsSQL(q)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query receipts: %w", err)
 	}
 	defer rows.Close()
 	return scanReceipts(rows)
