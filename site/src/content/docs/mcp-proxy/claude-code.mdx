@@ -124,14 +124,14 @@ ID                     SERVER         TOOL                           ACTION     
 ---
 urn:receipt:a72ee10b... github         list_issues                    data.api.read          low      success  2026-04-24T01:45:07Z
 urn:receipt:a125fd30... github         list_pull_requests             data.api.read          low      success  2026-04-24T01:44:20Z
-urn:receipt:67fede57... github         add_reply_to_pull_reques...    write                  medium   success  2026-04-24T00:51:57Z
-urn:receipt:013bfc43... github         request_copilot_review         unknown                medium   success  2026-04-24T00:43:40Z
-urn:receipt:7ae4f1b2... github         issue_write                    write                  medium   success  2026-04-24T00:19:35Z
+urn:receipt:67fede57... github         add_reply_to_pull_reques...    data.api.write         medium   success  2026-04-24T00:51:57Z
+urn:receipt:013bfc43... github         request_copilot_review         data.api.write         medium   success  2026-04-24T00:43:40Z
+urn:receipt:7ae4f1b2... github         issue_write                    data.api.write         medium   success  2026-04-24T00:19:35Z
 
 5 receipts
 ```
 
-Read tools like `list_issues` and `list_pull_requests` show `data.api.read / low`; write tools like `issue_write` show `write / medium`. The SERVER column reflects the `-name github` flag you passed to `mcp-proxy`.
+Read tools like `list_issues` and `list_pull_requests` show `data.api.read / low`; write tools like `issue_write` show `data.api.write / medium`. The SERVER column reflects the `-name github` flag you passed to `mcp-proxy`.
 
 ## Gotchas
 

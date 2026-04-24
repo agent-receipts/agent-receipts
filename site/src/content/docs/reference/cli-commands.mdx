@@ -52,15 +52,17 @@ urn:receipt:b4b430f9... atlassian      getJiraIssue                   data.api.r
 urn:receipt:32506b71... atlassian      searchJiraIssuesUsingJql       data.api.read          low      success  2026-04-24T01:56:12Z
 urn:receipt:f5da030f... atlassian      getAccessibleAtlassianResou... data.api.read          low      success  2026-04-24T01:56:06Z
 urn:receipt:a125fd30... github         list_pull_requests             data.api.read          low      success  2026-04-24T01:44:20Z
-urn:receipt:67fede57... github         add_reply_to_pull_reques...    write                  medium   success  2026-04-24T00:51:57Z
-urn:receipt:013bfc43... github         request_copilot_review         unknown                medium   success  2026-04-24T00:43:40Z
-urn:receipt:7ae4f1b2... github         issue_write                    write                  medium   success  2026-04-24T00:19:35Z
-urn:receipt:d52ba1fd... github         issue_write                    write                  medium   success  2026-04-24T00:19:25Z
+urn:receipt:67fede57... github         add_reply_to_pull_reques...    data.api.write         medium   success  2026-04-24T00:51:57Z
+urn:receipt:013bfc43... github         request_copilot_review         data.api.write         medium   success  2026-04-24T00:43:40Z
+urn:receipt:7ae4f1b2... github         issue_write                    data.api.write         medium   success  2026-04-24T00:19:35Z
+urn:receipt:d52ba1fd... github         issue_write                    data.api.write         medium   success  2026-04-24T00:19:25Z
 
 8 receipts
 ```
 
 SERVER comes from the `-name` flag passed to `mcp-proxy` when it was started; it identifies which MCP server handled the call. TOOL is the raw tool name (truncated at 30 characters). When running multiple proxied servers simultaneously — for example GitHub and Atlassian — the SERVER column is how you tell their receipts apart at a glance.
+
+The `-action` filter matches the ACTION column (taxonomy type, e.g. `data.api.read`), not the TOOL column. Issuer and operator identity isn't shown in the tabular view — use `mcp-proxy inspect` or `mcp-proxy list -json` to see it.
 
 ## `mcp-proxy inspect`
 
