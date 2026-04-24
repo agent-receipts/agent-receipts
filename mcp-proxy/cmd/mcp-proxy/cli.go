@@ -67,6 +67,17 @@ func cmdList(args []string) {
 		q.ActionType = actionType
 	}
 
+	// Set up the signal context up front in follow mode so Ctrl-C can
+	// interrupt the startup watermark query too (the DB may be busy/locked).
+	var (
+		ctx  context.Context
+		stop context.CancelFunc
+	)
+	if *follow {
+		ctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+	}
+
 	// In follow mode we capture the watermark atomically with the initial
 	// query so a row inserted between the two can't be silently skipped.
 	var (
@@ -75,7 +86,7 @@ func cmdList(args []string) {
 		err        error
 	)
 	if *follow {
-		receipts, startRowID, err = s.QueryReceiptsWithWatermark(q)
+		receipts, startRowID, err = s.QueryReceiptsWithWatermarkContext(ctx, q)
 	} else {
 		receipts, err = s.QueryReceipts(q)
 	}
@@ -127,9 +138,6 @@ func cmdList(args []string) {
 	followQ.NewestFirst = false
 	followQ.Limit = nil
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	if err := runFollowLoop(ctx, s, startRowID, followQ, *interval, *asJSON, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "Error in follow loop: %v\n", err)
 		os.Exit(1)
@@ -155,13 +163,24 @@ func runFollowLoop(ctx context.Context, s *store.Store, lastRowID int64, q store
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// One encoder per invocation: reused across ticks to avoid per-poll
+	// allocations and to keep encoding configuration in one place.
+	var enc *json.Encoder
+	if asJSON {
+		enc = json.NewEncoder(w)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			newRows, maxRowID, err := s.QueryAfterRowID(q, lastRowID)
+			newRows, maxRowID, err := s.QueryAfterRowIDContext(ctx, q, lastRowID)
 			if err != nil {
+				// Treat cancellation as a clean exit, not an error.
+				if ctx.Err() != nil {
+					return nil
+				}
 				return err
 			}
 			lastRowID = maxRowID
@@ -169,7 +188,6 @@ func runFollowLoop(ctx context.Context, s *store.Store, lastRowID int64, q store
 				continue
 			}
 			if asJSON {
-				enc := json.NewEncoder(w)
 				for _, r := range newRows {
 					if err := enc.Encode(r); err != nil {
 						return err

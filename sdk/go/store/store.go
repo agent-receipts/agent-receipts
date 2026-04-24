@@ -237,9 +237,20 @@ func (s *Store) MaxRowID() (int64, error) {
 // NewestFirst is ignored (follow-mode rows are always chronological). Limit
 // defaults to 10000 like QueryReceipts but is typically set much lower when
 // polling.
+//
+// Callers that want to bound query latency (e.g. so Ctrl-C in follow mode
+// stops a busy/locked query promptly) should use QueryAfterRowIDContext.
 func (s *Store) QueryAfterRowID(q Query, afterRowID int64) ([]receipt.AgentReceipt, int64, error) {
+	return s.QueryAfterRowIDContext(context.Background(), q, afterRowID)
+}
+
+// QueryAfterRowIDContext is the context-aware form of QueryAfterRowID. When
+// ctx is canceled, the in-flight SQLite query is interrupted so callers (e.g.
+// follow-mode pollers) don't have to wait on busy_timeout before shutting
+// down.
+func (s *Store) QueryAfterRowIDContext(ctx context.Context, q Query, afterRowID int64) ([]receipt.AgentReceipt, int64, error) {
 	query, args := buildQueryAfterRowIDSQL(q, afterRowID)
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, afterRowID, fmt.Errorf("query after rowid %d: %w", afterRowID, err)
 	}
@@ -252,15 +263,26 @@ func (s *Store) QueryAfterRowID(q Query, afterRowID int64) ([]receipt.AgentRecei
 // Intended for follow-mode startup: the returned watermark is consistent with
 // the rows emitted, eliminating the race where a row inserted between a
 // naive Query + MaxRowID pair can be silently skipped.
+//
+// Callers that want Ctrl-C to interrupt the startup query should use
+// QueryReceiptsWithWatermarkContext.
 func (s *Store) QueryReceiptsWithWatermark(q Query) ([]receipt.AgentReceipt, int64, error) {
-	tx, err := s.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	return s.QueryReceiptsWithWatermarkContext(context.Background(), q)
+}
+
+// QueryReceiptsWithWatermarkContext is the context-aware form of
+// QueryReceiptsWithWatermark. The supplied context governs both the
+// transaction and each query inside it, so cancellation interrupts in-flight
+// work instead of waiting for busy_timeout.
+func (s *Store) QueryReceiptsWithWatermarkContext(ctx context.Context, q Query) ([]receipt.AgentReceipt, int64, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, 0, fmt.Errorf("begin read transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	query, args := buildQueryReceiptsSQL(q)
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query receipts: %w", err)
 	}
@@ -271,7 +293,7 @@ func (s *Store) QueryReceiptsWithWatermark(q Query) ([]receipt.AgentReceipt, int
 	}
 
 	var maxRowID int64
-	if err := tx.QueryRow("SELECT COALESCE(MAX(rowid), 0) FROM receipts").Scan(&maxRowID); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(rowid), 0) FROM receipts").Scan(&maxRowID); err != nil {
 		return nil, 0, fmt.Errorf("max rowid: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
