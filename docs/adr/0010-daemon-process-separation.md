@@ -14,7 +14,9 @@ A secondary problem: every emitter (each MCP proxy instance, each OpenClaw-using
 
 Split every integration into two roles:
 
-1. **Thin emitter** — the plugin, proxy, or SDK fires an event describing the tool call. No signing, no storage, no crypto. Fire-and-forget over a local IPC socket. If the daemon is not running, events drop silently — the agent must never block waiting for the audit layer.
+1. **Thin emitter** — the plugin, proxy, or SDK fires an event describing the tool call. No signing, no storage, no crypto. Fire-and-forget over a local IPC socket. The agent must never block waiting for the audit layer. Two failure modes are distinguished, with deliberately different visibility properties:
+   - **Daemon not running** (connect fails or is refused): events truly drop silently. There is no daemon to record the gap, by definition. Operators detect this via the absence of fresh receipts and via service-manager status, not via in-chain signal.
+   - **Daemon running but backpressured** (`EAGAIN` on a non-blocking send): drops are tracked and surface in the chain via the `events_dropped` mechanism described under *Permissions and trust* below.
 
 2. **agent-receipts daemon** — a separate process running as its own OS user, sole owner of the signing keys and the SQLite database. Receives events, captures peer credentials, canonicalizes (RFC 8785), hash-chains, signs (Ed25519), and persists.
 
@@ -89,6 +91,6 @@ A future read socket for live-tail (`agent-receipts tail -f`) is in scope but no
 
 ## Related ADRs
 
-- ADR-0001 (Ed25519 signing) — unchanged, but the key now lives only in the daemon.
-- ADR-0002 (RFC 8785 canonicalization) — moves exclusively to the daemon.
-- ADR-0004 (SQLite storage) — daemon is sole writer; readers use filesystem permissions.
+- [ADR-0001 (Ed25519 signing)](./0001-ed25519-for-receipt-signing.md) — unchanged, but the key now lives only in the daemon.
+- [ADR-0002 (RFC 8785 canonicalization)](./0002-rfc8785-json-canonicalization.md) — moves exclusively to the daemon.
+- [ADR-0004 (SQLite storage)](./0004-sqlite-for-local-receipt-storage.md) — daemon is sole writer; readers use filesystem permissions.
