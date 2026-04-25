@@ -20,16 +20,23 @@ Split every integration into two roles:
 
 ### IPC transport
 
-- Linux/macOS: Unix domain socket (`SOCK_DGRAM`) at `/run/agentreceipts/events.sock`.
+- Linux: Unix domain socket (`SOCK_SEQPACKET`) at `/run/agentreceipts/events.sock`.
+- macOS: Unix domain socket (`SOCK_SEQPACKET`) at `/var/run/agentreceipts/events.sock` (which resolves to `/private/var/run/agentreceipts/events.sock`).
 - Windows: named pipe via Node's `net` module (`\\.\pipe\agentreceipts-events`) with equivalent ACL semantics.
+- Socket and pipe locations are configurable; unprivileged installs override the default (e.g. `$XDG_RUNTIME_DIR/agentreceipts/events.sock`).
 - TCP loopback is explicitly rejected — it dissolves the filesystem permission model and would require a bespoke local auth scheme.
+- `SOCK_SEQPACKET` is chosen over `SOCK_DGRAM` so peer credentials are reliably retrievable at the OS level — datagram sockets either lack a defined cred mechanism or require per-message ancillary data with platform-specific gaps — and over `SOCK_STREAM` so each event remains a discrete message without length-prefix framing.
 
 ### Permissions and trust
 
 - Daemon is the sole writer to the database and key store.
 - Emitters cannot read the database or keys.
-- Daemon captures peer credentials (`SO_PEERCRED` on Linux/macOS; `GetNamedPipeClientProcessId` + `OpenProcessToken` on Windows) and records `uid`, `gid`, `pid`, `exe_path` on every receipt. The agent's self-asserted identity is untrusted; peer attestation is what makes the audit meaningful.
-- Socket is non-blocking. Kernel drops on overflow are detected (`SO_RXQ_OVFL` on Linux) and recorded as synthesised `events_dropped` receipts in the chain so gaps are never invisible.
+- Daemon captures peer credentials at connection-accept time, using the connected-socket primitive native to each platform:
+  - Linux: `SO_PEERCRED` for `uid`, `gid`, `pid`.
+  - macOS: `LOCAL_PEERCRED` for `uid` and `gid`; `LOCAL_PEEREPID` for `pid`.
+  - Windows: `GetNamedPipeClientProcessId` for `pid`; `OpenProcessToken` to extract the user SID and integrity level.
+  The executable path is read from `/proc/<pid>/exe` (Linux), `proc_pidpath` (macOS), or `QueryFullProcessImageName` (Windows). The agent's self-asserted identity is untrusted; peer attestation is what makes the audit meaningful.
+- Connection is non-blocking. When the daemon's per-connection receive buffer is full, the emitter's send returns `EAGAIN`; the emitter increments a local drop counter rather than blocking, and flushes the counter alongside its next successful event. The daemon records the gap as a synthesised `events_dropped` receipt in the chain so dropped events are never invisible. (One narrow loss window remains — the emitter crashing after dropping but before flushing — and is documented as such.)
 
 ### Schema split
 
@@ -46,7 +53,7 @@ Emitter sends the minimum faithful representation:
 Daemon adds before signing:
 
 - `seq`, `prev_hash`, `ts_recv` (authoritative)
-- `peer` (`{ uid, gid, pid, exe_path }`)
+- `peer` — platform-tagged identity object. Common across all platforms: `platform` (`linux` | `darwin` | `windows`), `pid`, `exe_path`. POSIX (`linux`, `darwin`) additionally carries `uid`, `gid`. Windows additionally carries `user_sid` and `integrity_level`. The `platform` discriminator is authoritative for which identity fields are present; verifiers MUST NOT collapse Windows SIDs into numeric uids.
 - `id` (receipt UUID)
 
 Canonicalization happens only in the daemon. Pre-canonicalizing in N emitters in N languages would silently break verification.
