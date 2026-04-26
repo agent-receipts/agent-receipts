@@ -63,6 +63,7 @@ export interface Action {
 	risk_level: RiskLevel;
 	target?: ActionTarget;
 	parameters_hash?: string;
+	parameters_preview?: Record<string, string>;
 	timestamp: string;
 	trusted_timestamp?: string;
 }
