@@ -1,6 +1,6 @@
 # Agent Security Tooling Landscape — April 2026
 
-An overview of the agent security, policy enforcement, and governance space as of mid-April 2026.
+An overview of the agent security, policy enforcement, and governance space as of late April 2026.
 
 ---
 
@@ -98,7 +98,7 @@ Multiple projects have independently converged on the same cryptographic and pro
 | **W3C Verifiable Credentials** | Agent Receipts (unique in this space) |
 | **OWASP Agentic AI Top 10** | Microsoft AGT, Pipelock, mcp-firewall (ressl) |
 | **YAML policy config** | All projects |
-| **Hook-based emission** | Claude Code (full tool-surface coverage), Codex CLI (partial — no WebSearch, partial shell); Agent Receipts adopts both via `claude_code_hook` and `codex_hook` channels (ADRs in progress) |
+| **Hook-based emission** | Claude Code (full tool-surface coverage), Codex CLI (partial — no WebSearch, partial shell); Agent Receipts is aligning with both hook surfaces, with channel naming and documentation still in progress |
 
 ---
 
