@@ -1,10 +1,132 @@
 ---
 title: Installation
-description: Install and configure the OpenClaw plugin.
+description: Install and configure the OpenClaw plugin for Agent Receipts.
 ---
 
-:::note
-Coming soon. Installation instructions will be published once the plugin reaches an initial release.
-:::
+The plugin is published to npm as [`@agnt-rcpt/openclaw`](https://www.npmjs.com/package/@agnt-rcpt/openclaw).
 
-In the meantime, see the [plugin repository](https://github.com/agent-receipts/openclaw) for development status and early usage instructions.
+## Install
+
+```bash
+openclaw plugins install @agnt-rcpt/openclaw
+```
+
+For development against a local clone:
+
+```bash
+openclaw plugins install /path/to/openclaw-agent-receipts --link
+```
+
+## Tool visibility
+
+OpenClaw's tool policy pipeline filters which tools the agent can see.
+The default `"coding"` profile does not include plugin tools, so after
+installing you must allowlist the two agent-receipts tools in your `openclaw.json`:
+
+```jsonc
+{
+  "tools": {
+    "profile": "coding",
+    "alsoAllow": ["ar_query_receipts", "ar_verify_chain"]
+  }
+}
+```
+
+Without this, the plugin still loads — hooks fire and receipts are
+generated — but the agent cannot call the query or verify tools itself.
+
+Alternatively, switch to the `"full"` profile to allow all registered tools:
+
+```jsonc
+{
+  "tools": {
+    "profile": "full"
+  }
+}
+```
+
+Or allowlist the entire plugin by ID:
+
+```jsonc
+{
+  "tools": {
+    "alsoAllow": ["openclaw-agent-receipts"]
+  }
+}
+```
+
+## Configuration
+
+All configuration is optional. Defaults are shown below:
+
+```jsonc
+{
+  "plugins": {
+    "entries": {
+      "openclaw-agent-receipts": {
+        "enabled": true,
+        "config": {
+          "enabled": true,
+          "dbPath": "~/.openclaw/agent-receipts/receipts.db",
+          "keyPath": "~/.openclaw/agent-receipts/keys.json",
+          "taxonomyPath": null,           // path to a custom taxonomy JSON file
+          "parameterPreview": false       // false | true | "high" | string[]
+        }
+      }
+    }
+  }
+}
+```
+
+## Parameter preview
+
+By default, action parameters are hashed but not stored in plaintext. Enable `parameterPreview` to selectively disclose specific fields per action type — useful for auditing high-risk commands without exposing sensitive data on lower-risk calls.
+
+```jsonc
+{
+  "plugins": {
+    "entries": {
+      "openclaw-agent-receipts": {
+        "config": {
+          "parameterPreview": "high"
+        }
+      }
+    }
+  }
+}
+```
+
+Options:
+
+| Value | Behavior |
+|-------|-----------|
+| `false` | Hashes only — no plaintext (default) |
+| `true` | Preview enabled for all action types |
+| `"high"` | Preview enabled for `high` and `critical` risk actions only |
+| `["system.command.execute"]` | Preview enabled for specific action types |
+
+With `"high"` enabled, a `system.command.execute` receipt includes:
+
+```jsonc
+{
+  // ...other receipt fields
+  "parameters_hash": "sha256:9c84a8c9...",
+  "parameters_preview": {
+    "command": "echo \"Testing agent-receipts plugin fix\""
+  }
+}
+```
+
+The hash always covers the full original parameters regardless of preview config. The preview is additive and opt-in — fields disclosed are defined per action type in the taxonomy.
+
+## Verify the install
+
+Restart the gateway and confirm the plugin loaded:
+
+```bash
+openclaw plugins list
+```
+
+You should see `Agent Receipts` with status `loaded`. Ask the agent to
+call `ar_query_receipts` or `ar_verify_chain` to confirm the tools are
+visible.
