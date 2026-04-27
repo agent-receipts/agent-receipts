@@ -35,7 +35,17 @@ installing you must allowlist the two agent-receipts tools in your `openclaw.jso
 Without this, the plugin still loads — hooks fire and receipts are
 generated — but the agent cannot call the query or verify tools itself.
 
-You can also allowlist the entire plugin by ID:
+Alternatively, switch to the `"full"` profile to allow all registered tools:
+
+```jsonc
+{
+  "tools": {
+    "profile": "full"
+  }
+}
+```
+
+Or allowlist the entire plugin by ID:
 
 ```jsonc
 {
@@ -59,7 +69,8 @@ All configuration is optional. Defaults are shown below:
           "enabled": true,
           "dbPath": "~/.openclaw/agent-receipts/receipts.db",
           "keyPath": "~/.openclaw/agent-receipts/keys.json",
-          "taxonomyPath": null  // path to a custom taxonomy JSON file
+          "taxonomyPath": null,           // path to a custom taxonomy JSON file
+          "parameterPreview": false       // false | true | "high" | string[]
         }
       }
     }
@@ -69,7 +80,7 @@ All configuration is optional. Defaults are shown below:
 
 ## Parameter preview
 
-By default, action parameters are hashed but not stored in plaintext. Enable `parameterPreview` to selectively disclose specific fields per action type — useful for auditing high-risk commands without exposing sensitive data elsewhere.
+By default, action parameters are hashed but not stored in plaintext. Enable `parameterPreview` to selectively disclose specific fields per action type — useful for auditing high-risk commands without exposing sensitive data on lower-risk calls.
 
 ```jsonc
 {
