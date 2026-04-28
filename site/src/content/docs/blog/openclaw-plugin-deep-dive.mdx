@@ -56,7 +56,7 @@ Every tool call is mapped to an action type and risk level before the receipt is
 |-----------|-------------|------|
 | `exec`, `bash`, `run_command` | `system.command.execute` | high |
 | `read_file`, `read` | `filesystem.file.read` | low |
-| `write_file`, `write` | `filesystem.file.create` | low |
+| `write_file`, `write` | `filesystem.file.modify` | medium |
 | `delete_file` | `filesystem.file.delete` | high |
 | `browser_navigate`, `web_fetch` | `system.browser.navigate` | low |
 | `settings_modify` | `system.settings.modify` | high |
@@ -88,7 +88,7 @@ Every receipt is a W3C Verifiable Credential. Here's a full receipt from the v0 
   "issuanceDate": "2026-04-26T21:09:38.311Z",
   "credentialSubject": {
     "principal": {
-      "id": "did:session:agent:main:telegram:direct:114070211"
+      "id": "did:session:agent:main:telegram:direct:123456789"
     },
     "action": {
       "type": "system.command.execute",
@@ -102,7 +102,7 @@ Every receipt is a W3C Verifiable Credential. Here's a full receipt from the v0 
     "chain": {
       "sequence": 1,
       "previous_receipt_hash": null,
-      "chain_id": "chain_openclaw_agent:main:telegram:direct:114070211_52de0419-1d76-4d15-9fb4-ffe5463e5cd2"
+      "chain_id": "chain_openclaw_agent:main:telegram:direct:123456789_52de0419-1d76-4d15-9fb4-ffe5463e5cd2"
     }
   },
   "proof": {
@@ -218,7 +218,7 @@ Two things the plugin cannot provide that the MCP Proxy can:
 
 **Intent field.** The MCP Proxy sits between the client and server and has access to the full JSON-RPC request, including the reasoning context that prompted the call. The plugin intercepts at the tool boundary — it sees the call, not what caused it. The `intent` field in the receipt schema is populated by the proxy, not the plugin.
 
-**Full parameter storage.** The proxy can store the complete, unredacted parameters (subject to secret-redaction patterns) when configured to do so. The plugin's privacy-preserving default is hash-only. Even with `parameterPreview: true`, what's stored is a best-effort plaintext representation, not the full canonical arguments object.
+**Proxy-side argument retention.** The proxy still records `action.parameters_hash` in receipts by default, but it can additionally retain a redacted or encrypted copy of the full arguments in its audit database, depending on configuration. The plugin's privacy-preserving default is hash-only. Even with `parameterPreview: true`, what's stored is a best-effort plaintext representation, not the full canonical arguments object.
 
 The tradeoff: the plugin requires no changes to your agent implementation, no wrapping of your MCP servers, and no proxy process in your stack. You get receipts for every tool call across every tool your agent uses. The depth of each receipt is narrower.
 
